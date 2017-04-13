@@ -97,6 +97,9 @@ dt {font-weight: bold;}
 dd {margin-left: 1.5em;}
 
 pre{background-color:  rgb(238, 238, 238); padding: 10px; margin: 10px; overflow: auto;}
+pre, code{
+	font-family: consolas monospace;
+}
 
 /* Quotes */
 blockquote {

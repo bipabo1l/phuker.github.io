@@ -21,7 +21,7 @@ body {
     background: #f2f3f3;
     color: #000305;
     font-size: 87.5%; /* Base font size: 14px */
-    font-family: 'Trebuchet MS', Trebuchet, 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+    font-family: "Microsoft YaHei",'Trebuchet MS', Trebuchet, 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
     line-height: 1.429;
     margin: 0;
     padding: 0;
@@ -41,6 +41,9 @@ h1, h2, h3, h4, h5, h6 {
 	line-height: 1.1;
 	margin-bottom: .8em;
     /*font-family: 'Yanone Kaffeesatz', arial, serif;*/
+}
+#content article h1{
+	font-weight: bolder;
 }
 
 h3, h4, h5, h6 { margin-top: .8em; }
@@ -495,7 +498,7 @@ li:last-child .hentry, #content > .hentry {border: 0; margin: 0;}
 
 /* Extra Small */
 @media(max-width:767px){
-	h1 {font-size: 1.571em }
+	h1 {font-size: 1.715em} /*24px*/
 	h2 {font-size: 1.429em}
 	h3 {font-size: 1.286em}	
 	h4 {font-size: 1.143em}
@@ -546,7 +549,9 @@ li:last-child .hentry, #content > .hentry {border: 0; margin: 0;}
 
 /* Small */
 @media(min-width:768px) and (max-width:991px){
-	h1 {font-size: 1.571em }
+	h1 {
+		font-size: 1.643em;
+	}
 	h2 {font-size: 1.429em}
 	h3 {font-size: 1.286em}	
 	h4 {font-size: 1.143em}
@@ -567,7 +572,9 @@ li:last-child .hentry, #content > .hentry {border: 0; margin: 0;}
 
 /* Medium */
 @media(min-width:992px) and (max-width:1199px){
-	h1 {font-size: 1.714em }
+	h1 {
+		font-size: 1.715em;
+	}
 	h2 {font-size: 1.571em}	
 	h3 {font-size: 1.429em}	
 	h4 {font-size: 1.286em}	

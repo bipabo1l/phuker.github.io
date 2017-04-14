@@ -118,7 +118,7 @@ div.note {
 }
 
 /* Tables */
-table {margin: .5em auto 1.5em auto; width: 98%;}
+table {margin: .5em auto 1.5em auto; width: 98%;    word-break: break-word;}
 	
 	/* Thead */
 	thead th {padding: .5em .4em; text-align: left;}
@@ -514,10 +514,27 @@ li:last-child .hentry, #content > .hentry {border: 0; margin: 0;}
 		padding: 5px 0.5em !important;
 	}
 	.body, #featured, #content{
-		width: 85%;
+		/*width: 85%;*/
+		width: 96%;
+	    border-radius: initial;
+	    -webkit-border-radius: initial;
 	}
 	#banner{
-		width: 89%;
+		/*width: 89%;*/
+	    padding: 1.5em 0 0.5em 0;
+    	width: 100%;
+	}
+	#banner nav{
+		border-radius: initial;
+        -webkit-border-radius: initial;
+	}
+	.post-info {
+    	text-align: left !important;
+	}
+	.readmore{
+		float: none !important;
+	    margin-top: 1em !important;
+	    display: block !important;
 	}
 }
 

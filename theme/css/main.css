@@ -29,7 +29,7 @@ body {
 }
 
 /* Headings */
-h1 {font-size: 2em }
+h1 {font-size: 2em }    /* 28px */
 h2 {font-size: 1.571em}	/* 22px */
 h3 {font-size: 1.429em}	/* 20px */
 h4 {font-size: 1.286em}	/* 18px */
@@ -418,7 +418,10 @@ img.left, figure.left {float: left; margin: 0 2em 2em 0;}
 li:last-child .hentry, #content > .hentry {border: 0; margin: 0;}
 #content > .hentry {padding: 1em 0;}
 .hentry img{display : none ;}
-.entry-title {font-size: 3em; margin-bottom: 10px; margin-top: 0;}
+.hentry h1 a {
+	text-decoration: none;
+}
+.entry-title {font-size: 2.4em; margin-bottom: 10px; margin-top: 0;}
 .entry-title a:link, .entry-title a:visited {text-decoration: none; color: #333;}
 .entry-title a:visited {background-color: #fff;}
 
@@ -492,14 +495,14 @@ li:last-child .hentry, #content > .hentry {border: 0; margin: 0;}
 
 /* Extra Small */
 @media(max-width:767px){
-	h1 {font-size: 1.0em }
-	h2 {font-size: 0.785em}
-	h3 {font-size: 0.714em}	
-	h4 {font-size: 0.643em}
-	h5 {font-size: 0.571em}	
-	h6 {font-size: 0.5em}	
-	#featured h2 {font-size: 0.885em;}
-	#featured h3 {font-size: 0.914em;}
+	h1 {font-size: 1.571em }
+	h2 {font-size: 1.429em}
+	h3 {font-size: 1.286em}	
+	h4 {font-size: 1.143em}
+	h5 {font-size: 1.071em}	
+	h6 {font-size: 1.0em}	
+	#featured h2 {font-size: 1.429em;}
+	#featured h3 {font-size: 1.286em;}
 	h1,h2,h3,h4,h5,h6{
 		margin-bottom: 1.0em;
 		line-height: 1.4;
@@ -536,23 +539,26 @@ li:last-child .hentry, #content > .hentry {border: 0; margin: 0;}
 	    margin-top: 1em !important;
 	    display: block !important;
 	}
+	#featured{
+		margin-bottom: 2px;
+	}
 }
 
 /* Small */
 @media(min-width:768px) and (max-width:991px){
-	h1 {font-size: 1.4em }
-	h2 {font-size: 1.1em}
-	h3 {font-size: 1.0em}	
-	h4 {font-size: 0.9em}	
-	h5 {font-size: 0.8em}
-	h6 {font-size: 0.7em}	
-	#featured h2 {font-size: 1.3em;}
-	#featured h3 {font-size: 1.2em;}
+	h1 {font-size: 1.571em }
+	h2 {font-size: 1.429em}
+	h3 {font-size: 1.286em}	
+	h4 {font-size: 1.143em}
+	h5 {font-size: 1.071em}	
+	h6 {font-size: 1.0em}	
+	#featured h2 {font-size: 1.429em;}
+	#featured h3 {font-size: 1.286em;}
 	#banner h1 {
 		font-size: 2.8em;
 	}
 	.entry-title {
-		font-size: 2.3em;
+		font-size: 2.2em;
 	}
 	nav li a {
 		padding: 5px 1.0em !important;
@@ -561,19 +567,19 @@ li:last-child .hentry, #content > .hentry {border: 0; margin: 0;}
 
 /* Medium */
 @media(min-width:992px) and (max-width:1199px){
-	h1 {font-size: 1.6em }
-	h2 {font-size: 1.257em}	
-	h3 {font-size: 1.143em}	
-	h4 {font-size: 1.028em}	
-	h5 {font-size: 0.914em}	
-	h6 {font-size: 0.8em}
-	#featured h2 {font-size: 1.457em;}
-	#featured h3 {font-size: 1.343em;}	
+	h1 {font-size: 1.714em }
+	h2 {font-size: 1.571em}	
+	h3 {font-size: 1.429em}	
+	h4 {font-size: 1.286em}	
+	h5 {font-size: 1.142em}	
+	h6 {font-size: 1.0em}
+	#featured h2 {font-size: 1.571em;}
+	#featured h3 {font-size: 1.429em;}	
 	#banner h1 {
 		font-size: 3em;
 	}
 	.entry-title {
-		font-size: 2.5em;
+		font-size: 2.3em;
 	}
 	nav li a {
 		padding: 5px 1.3em !important;

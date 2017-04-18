@@ -22,6 +22,7 @@
                     <li><a href="/#">Home</a></li>
                     <li><a href="https://phuker.github.io/category/about.html">About</a></li>
                     <li class="active"><a href="https://phuker.github.io/category/misc.html">Misc</a></li>
+                    <li><a href="https://phuker.github.io/category/web.html">Web</a></li>
                 </ul>
                 </nav>
         </header><!-- /#banner -->
@@ -158,17 +159,17 @@
 <h1>运行镜像，映射端口</h1>
 <h2>开启lamp镜像，映射主机8080端口到容器80端口</h2>
 <p>e9d是 镜像id或镜像名</p>
-<div class="highlight"><pre><span></span>$ sudo docker run -it -p <span class="m">8080</span>:80 e9d apache2  
-AH00558: apache2: Could not reliably determine the server<span class="s1">&#39;s fully qualified domain name, using 172.17.0.1. Set the &#39;</span>ServerName<span class="s1">&#39; directive globally to suppress this message</span>
+<div class="highlight"><pre><span></span>$ sudo docker run -it -p 8080:80 e9d apache2  
+AH00558: apache2: Could not reliably determine the server&#39;s fully qualified domain name, using 172.17.0.1. Set the &#39;ServerName&#39; directive globally to suppress this message
 
-<span class="s1">$ sudo docker run -it -p 8080:80 e9d /bin/bash</span>
-<span class="s1">root@ac4c74c9ac8a:/var/www/html# apache2</span>
-<span class="s1">AH00558: apache2: Could not reliably determine the server&#39;</span>s fully qualified domain name, using <span class="m">172</span>.17.0.2. Set the <span class="s1">&#39;ServerName&#39;</span> directive globally to suppress this message
+$ sudo docker run -it -p 8080:80 e9d /bin/bash
+root@ac4c74c9ac8a:/var/www/html# apache2
+AH00558: apache2: Could not reliably determine the server&#39;s fully qualified domain name, using 172.17.0.2. Set the &#39;ServerName&#39; directive globally to suppress this message
 </pre></div>
 
 
 <p>在后台运行，启动后容器内自动运行 /root/run.sh</p>
-<div class="highlight"><pre><span></span>sudo docker run -itd -p 8080:80 e9d /root/run.sh
+<div class="highlight"><pre><span></span>sudo docker run -itd -p <span class="m">8080</span>:80 e9d /root/run.sh
 </pre></div>
 
 
@@ -186,8 +187,8 @@ AH00558: apache2: Could not reliably determine the server<span class="s1">&#39;s
 <h1>列出容器</h1>
 <div class="highlight"><pre><span></span>$ sudo docker ps -a
 CONTAINER ID    IMAGE   COMMAND CREATED STATUS  PORTS   NAMES
-ac4c74c9ac8a    e9d:latest  <span class="s2">&quot;/bin/bash&quot;</span> <span class="m">7</span> minutes ago   Up <span class="m">7</span> minutes    <span class="m">0</span>.0.0.0:8080-&gt;80/tcp    insane_mayer  
-3a4b37b41ea7    e9d:latest  <span class="s2">&quot;apache2&quot;</span>   <span class="m">7</span> minutes ago   Exited <span class="o">(</span><span class="m">0</span><span class="o">)</span> <span class="m">7</span> minutes ago        suspicious_darwin
+ac4c74c9ac8a    e9d:latest  &quot;/bin/bash&quot; 7 minutes ago   Up 7 minutes    0.0.0.0:8080-&gt;80/tcp    insane_mayer  
+3a4b37b41ea7    e9d:latest  &quot;apache2&quot;   7 minutes ago   Exited (0) 7 minutes ago        suspicious_darwin
 </pre></div>
 
 
@@ -206,7 +207,7 @@ ac4c74c9ac8a    e9d:latest  <span class="s2">&quot;/bin/bash&quot;</span> <span 
 <p>退出，一定不要用ctrl+c，那样就是让docker容器停止了。<br>
 要用如下快捷键：先按，ctrl+p;再按，ctrl+q</p>
 <h1>exec：在容器内增加进程</h1>
-<div class="highlight"><pre><span></span>docker exec -it 88c /bin/bash
+<div class="highlight"><pre><span></span>docker <span class="nb">exec</span> -it 88c /bin/bash
 </pre></div>
 
 
@@ -214,8 +215,8 @@ ac4c74c9ac8a    e9d:latest  <span class="s2">&quot;/bin/bash&quot;</span> <span 
 <h1>容器内外复制文件</h1>
 <p>c9f 是容器 id</p>
 <h2>容器外向容器内</h2>
-<div class="highlight"><pre><span></span>docker exec -i c9f /bin/sh -c &#39;cat &gt; /var/static/original/img/xxx.jpg&#39; &lt; ./xxx.jpg
-docker exec -i 7d0 /bin/sh -c &#39;cat &gt; /home/ctf/pwn1&#39; &lt; ./pwn1
+<div class="highlight"><pre><span></span>docker <span class="nb">exec</span> -i c9f /bin/sh -c <span class="s1">&#39;cat &gt; /var/static/original/img/xxx.jpg&#39;</span> &lt; ./xxx.jpg
+docker <span class="nb">exec</span> -i 7d0 /bin/sh -c <span class="s1">&#39;cat &gt; /home/ctf/pwn1&#39;</span> &lt; ./pwn1
 </pre></div>
 
 
@@ -228,7 +229,7 @@ docker exec -i 7d0 /bin/sh -c &#39;cat &gt; /home/ctf/pwn1&#39; &lt; ./pwn1
 <h1>查看端口映射</h1>
 <p>ac4c是容器id</p>
 <div class="highlight"><pre><span></span>$ sudo docker port ac4c
-<span class="m">80</span>/tcp -&gt; <span class="m">0</span>.0.0.0:8080
+80/tcp -&gt; 0.0.0.0:8080
 </pre></div>
 
 
@@ -256,7 +257,7 @@ docker exec -i 7d0 /bin/sh -c &#39;cat &gt; /home/ctf/pwn1&#39; &lt; ./pwn1
 <p>先删除所有依赖容器，再删除镜像。<br>
 后面跟上标签或ID，跟标签会先删除标签（untag），如果没有标签指向镜像，就删除（delete）镜像。<br>
 跟ID，删除所有相关标签（untag），再删除（delete）镜像。  </p>
-<div class="highlight"><pre><span></span>sudo docker rmi 2318
+<div class="highlight"><pre><span></span>sudo docker rmi <span class="m">2318</span>
 sudo docker rmi ubuntu
 </pre></div>
 
@@ -268,12 +269,12 @@ sudo docker rmi ubuntu
 
 <h1>批量操作容器</h1>
 <p>停止正在运行的容器  </p>
-<div class="highlight"><pre><span></span>sudo docker stop $(sudo docker ps -q)
+<div class="highlight"><pre><span></span>sudo docker stop <span class="k">$(</span>sudo docker ps -q<span class="k">)</span>
 </pre></div>
 
 
 <p>删除（已经停止的，正在运行的不能删除）容器  </p>
-<div class="highlight"><pre><span></span>sudo docker rm $(sudo docker ps -a -q)
+<div class="highlight"><pre><span></span>sudo docker rm <span class="k">$(</span>sudo docker ps -a -q<span class="k">)</span>
 </pre></div>
 
 
@@ -293,25 +294,25 @@ ctfdrunning           latest              bae813fdc553        4 seconds ago     
 
 
 <p>CTFd的新版本有volume，docker commit不包括volume。可以运行一个新的容器，直接加上参数  </p>
-<div class="highlight"><pre><span></span>docker run -itd -p 8912:8000 --name ctfd_newport --volumes-from 老的container的name ctfd的image名
+<div class="highlight"><pre><span></span>docker run -itd -p <span class="m">8912</span>:8000 --name ctfd_newport --volumes-from 老的container的name ctfd的image名
 </pre></div>
 
 
 <h2>volume</h2>
 <p>查看所有volume  </p>
-<div class="highlight"><pre><span></span>docker volume inspect $(docker volume ls -q)
+<div class="highlight"><pre><span></span>docker volume inspect <span class="k">$(</span>docker volume ls -q<span class="k">)</span>
 </pre></div>
 
 
 <h1>docker inspect 查看容器详细信息</h1>
-<div class="highlight"><pre><span></span><span class="n">Usage</span><span class="o">:</span>  <span class="n">docker</span> <span class="n">inspect</span> <span class="o">[</span><span class="n">OPTIONS</span><span class="o">]</span> <span class="n">CONTAINER</span><span class="o">|</span><span class="n">IMAGE</span><span class="o">|</span><span class="n">TASK</span> <span class="o">[</span><span class="n">CONTAINER</span><span class="o">|</span><span class="n">IMAGE</span><span class="o">|</span><span class="n">TASK</span><span class="o">...]</span>
+<div class="highlight"><pre><span></span>Usage:  docker inspect [OPTIONS] CONTAINER|IMAGE|TASK [CONTAINER|IMAGE|TASK...]
 
-<span class="n">Return</span> <span class="n">low</span><span class="o">-</span><span class="n">level</span> <span class="n">information</span> <span class="n">on</span> <span class="n">a</span> <span class="n">container</span><span class="o">,</span> <span class="n">image</span> <span class="n">or</span> <span class="n">task</span>
+Return low-level information on a container, image or task
 
-  <span class="o">-</span><span class="n">f</span><span class="o">,</span> <span class="o">--</span><span class="n">format</span>       <span class="n">Format</span> <span class="n">the</span> <span class="n">output</span> <span class="n">using</span> <span class="n">the</span> <span class="n">given</span> <span class="n">go</span> <span class="n">template</span>
-  <span class="o">--</span><span class="n">help</span>             <span class="n">Print</span> <span class="n">usage</span>
-  <span class="o">-</span><span class="n">s</span><span class="o">,</span> <span class="o">--</span><span class="n">size</span>         <span class="n">Display</span> <span class="n">total</span> <span class="n">file</span> <span class="n">sizes</span> <span class="k">if</span> <span class="n">the</span> <span class="n">type</span> <span class="k">is</span> <span class="n">container</span>
-  <span class="o">--</span><span class="n">type</span>             <span class="n">Return</span> <span class="n">JSON</span> <span class="k">for</span> <span class="n">specified</span> <span class="n">type</span><span class="o">,</span> <span class="o">(</span><span class="n">e</span><span class="o">.</span><span class="na">g</span> <span class="n">image</span><span class="o">,</span> <span class="n">container</span> <span class="n">or</span> <span class="n">task</span><span class="o">)</span>
+  -f, --format       Format the output using the given go template
+  --help             Print usage
+  -s, --size         Display total file sizes if the type is container
+  --type             Return JSON for specified type, (e.g image, container or task)
 </pre></div>
     </div><!-- /.entry-content -->
     <p></p>

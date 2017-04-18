@@ -103,6 +103,11 @@ pre{background-color:  rgb(238, 238, 238); padding: 10px; margin: 10px; overflow
 pre, code{
 	font-family: consolas, "Courier New", Monaco, monospace;
 }
+code{
+	border: 1px solid #eaeaea;
+	background-color: #f8f8f8;
+	border-radius: 3px;
+}
 
 /* Quotes */
 blockquote {
@@ -128,7 +133,11 @@ table {margin: .5em auto 1.5em auto; width: 98%;    word-break: break-word;}
 	thead td {}
 
 	/* Tbody */
-	tbody td {padding: .5em .4em;}
+	tbody td {
+		padding: .5em .4em;
+	    border-width: 1px;
+    	border-style: solid;
+	}
 	tbody th {}
 	
 	tbody .alt td {}

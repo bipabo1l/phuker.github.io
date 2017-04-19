@@ -42,7 +42,9 @@ h1, h2, h3, h4, h5, h6 {
 	margin-bottom: .8em;
     /*font-family: 'Yanone Kaffeesatz', arial, serif;*/
 }
-#content article h1{
+
+/*only main page of a post*/
+article:not(.hentry) div.entry-content  h1{
 	font-weight: bolder;
 }
 

@@ -39,7 +39,7 @@
         <span>2017-04-18 周二</span>
         	<span>| by <a class="url fn" href="https://phuker.github.io/author/admin.html">admin</a></span>
 <span>| tags: <a href="https://phuker.github.io/tag/sqli.html">sqli</a></span>
-</footer><!-- /.post-info -->      <p>在某些MySQL盲注情况下，不能用常见的二分法爆库。这里是一种按bit爆破每一个字符的方法。我在0CTF 2017 想出来这种方法，然后BCTF 2017 找到Payload之后直接复制代码改了改就解出了题目。当然，这种思路 too simple，早已经<a href="http://www.securitylearn.net/tag/dump-database-in-blind-sql-injection/" target="_blank">有人</a>想到了这种方法。   </p>
+</footer><!-- /.post-info -->      <p>在某些SQL盲注情况下，不能用常见的二分法爆库。这里是一种按 bit 爆破每一个字符的方法。我在0CTF 2017 想到了这种方法，然后在 BCTF 2017 找到 Payload 之后改了代码就解出了题目。当然，这种思路毕竟还是 too simple，早已经<a href="http://www.securitylearn.net/tag/dump-database-in-blind-sql-injection/" target="_blank">有人</a>想到了这种方法。   </p>
 <h1>0CTF 2017 Web Temmo's Tiny Shop</h1>
 <p>(以下内容摘自<a href="https://www.cnblogs.com/go2bed/p/6607565.html" target="_blank">我的旧博客</a>,略有删改)  </p>
 <p>洒家参加了0CTF 2017，做了一些题目。赛后过了好几天，看网上已经有了一些写得不错的Writeup，这里就写一写洒家的一些不一样的思路。<br>
@@ -127,10 +127,10 @@ flag{r4ce_c0nditi0n_i5_excited}
 
 
 <h1>BCTF 2017 Alice and Bob</h1>
-<p>这道题就是个纯SQL注入，输入名字（user表只有Alice和Bob两项），然后查询这个user的说明（desc字段）。随便输入一个单引号就有MySQL报错。简单测试了一下有WAF，WAF的逻辑不是以前的CTF那种白名单、黑名单，而是非常复杂的逻辑（后来才知道是某商业产品）。虽然说最好的绕过WAF的方法是让WAF失效，但是洒家并没有找到这种方法，只能正面解决这个问题。  </p>
+<p>这道题就是个纯SQL注入，输入名字（user表只有Alice和Bob两项），然后查询这个user的说明（desc字段）。随便输入一个单引号就有MySQL报错。简单测试了一下有WAF，WAF的逻辑不是以前的CTF那种白名单、黑名单，而是非常复杂的逻辑（后来才知道是某商业产品）。最好的绕过WAF的方法是让WAF失效，但是洒家并没有找到这种方法，首先记录一下正面解决这个问题的心路历程。  </p>
 <p>以下是“刚正面”的过程：<br>
 首先根据报错，等信息，数据库名是<code>bctf</code>，SQL查询的表名是<code>user</code>，字段名是 <code>id name desc</code>。另一个表叫<code>flag</code>，字段：<code>id flag</code>。猜测SQL应该类似：  </p>
-<div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="k">desc</span> <span class="k">FROM</span> <span class="k">user</span> <span class="k">where</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;用户输入&#39;</span>
+<div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="k">desc</span> <span class="k">FROM</span> <span class="k">user</span> <span class="k">WHERE</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;用户输入&#39;</span>
 </pre></div>
 
 
@@ -221,7 +221,7 @@ flag{r4ce_c0nditi0n_i5_excited}
 </tr>
 </tbody>
 </table>
-<p>以<code>name=Alice' =all (select ord(substr(flag,1,1)) div 16 mod 2 from flag)#</code>为例，注入之后这条SQL的含义是: 假如name是'Alice'，name='Alice'的值是1, 然后和后面的子查询比较，如果子查询的bit是1，Alice就会被输出。然后对每一字节的每一位操作即可得到flag。脚本和上面的0CTF的基本一样。<br>
+<p>以<code>name=Alice' =all (select ord(substr(flag,1,1)) div 16 mod 2 from flag)#</code>为例。S注入之后整个SQL的逻辑是: 假如某一条数据 name 是'Alice'，name='Alice'的值是1, 然后和后面的子查询比较，如果子查询的 bit 是1，这条数据就会被输出。同理，对 flag 的每一字节的每一位操作即可得到flag。脚本和上面的0CTF的基本一样。<br>
 输出：     </p>
 <div class="highlight"><pre><span></span>1 0 0 0 0 1 1 &#39;C&#39;
 1 1 0 1 1 1 1 &#39;Co&#39;
@@ -256,7 +256,8 @@ Cool, give you an interesting string: bctf{0ad99685303ed109abed3a80269563c4}
 <ul>
 <li>本地搭环境  </li>
 </ul>
-<p>模拟题目环境，测试自己的Payload的正确性。想当然危害大。</p>
+<p>模拟题目环境，测试自己的Payload的正确性。不能想当然。<br>
+另外如果题目的操作比较复杂，建议花几分钟先写一个帮助输入、输出的脚本，并把所有的输入和输出记录到文件便于对比。   </p>
 <ul>
 <li>学习他人人生的经验  </li>
 </ul>

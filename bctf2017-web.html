@@ -40,7 +40,7 @@
         	<span>| by <a class="url fn" href="https://phuker.github.io/author/admin.html">admin</a></span>
 <span>| tags: <a href="https://phuker.github.io/tag/ctf.html">CTF</a><a href="https://phuker.github.io/tag/web.html">web</a></span>
 </footer><!-- /.post-info -->      <p>毕竟还是图样图森破，这次比赛最后我们只做出来了一部分题目，很可惜火日菊苣出的两道题目都没做出来。 <br>
-<img alt="捂脸" src="images/say-more-all-tears.jpg" style="height:8em">   </p>
+<img alt="捂脸" src="/images/say-more-all-tears.jpg" style="height:8em">   </p>
 <h1>Baby Sqli/ Kitty Shop/ Reverse: Flag Shop</h1>
 <p>这也是一套略显莫名其妙的题目。  </p>
 <h2>Baby Sqli</h2>
@@ -104,7 +104,7 @@ kitty=../../../../../../backup/client.zip
 赛后简单测试了一下，此处过滤了一些字符：  <code>| &lt; &gt; " ' 空格</code> 等。测试 ASCII 0-255 所有字符，没有过滤的只有： <code>! % &amp; ( ) + , - . 数字 = ? @ 大写字母 ^ _ 小写字母</code> ，以及 <code>[ ] { }</code>。仔细观察VPS日志可以发现，后面4种字符虽然并没有显示<code>{"files":{"error":"Invalid URL"}}</code>，而是返回了<code>{"files":{"size":0,"error":"Not Image"}}</code>，但是服务器上并没有看到请求的日志。从这些现象可以猜测：这里用到了curl命令，不能命令注入，但是有不知道的特性。  <br>
 查 <code>man curl</code> 以及相关资料，发现 curl 有 <a href="https://ec.haxx.se/cmdline-globbing.html" target="_blank"><code>URL globbing</code></a> 的特性。然后服务端应该是执行了类似 <code>curl 用户URL &gt; xxx</code> 的命令。<br>
 那么就有思路了：随便找一张 gif 图片，首先上传再下载让gd库处理一次。然后从中间去掉374个字节分成首尾两个图片，使用curl的这个特性以及 SSRF 漏洞“夹住” flag.php，保存到<code>/uploads/</code>里面。<br>
-<img alt="用到的gif图片" src="images/firesun-paint.gif"><br>
+<img alt="用到的gif图片" src="/images/firesun-paint.gif"><br>
 另外，分割图片的位置不能太随意。稍有常识的人都会看出，gif 文件的数据区块<code>struct DATASUBBLOCKS DataSubBlocks[N]</code>大小是 255，但是 flag.php 的大小是 374，在这里并不能装下<code>flag.php</code>的所有内容，这会导致 <code>gd</code> 库处理的过程中出现问题。而<code>struct GLOBALCOLORTABLE GlobalColorTable</code>的空间则足够大，可以在这一个区域储存<code>flag.php</code>。</p>
 <p>手动抠图效率不高，写一个随机切割图片并上传的脚本：</p>
 <div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">requests</span>

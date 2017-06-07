@@ -1,5 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Phuker</title><link href="https://phuker.github.io/" rel="alternate"></link><link href="https://phuker.github.io/feeds/all.atom.xml" rel="self"></link><id>https://phuker.github.io/</id><updated>2017-04-19T15:27:44+08:00</updated><entry><title>BCTF 2017 Web 题目总结</title><link href="https://phuker.github.io/bctf2017-web.html" rel="alternate"></link><published>2017-04-19T15:27:40+08:00</published><updated>2017-04-19T15:27:44+08:00</updated><author><name>admin</name></author><id>tag:phuker.github.io,2017-04-19:/bctf2017-web.html</id><summary type="html">&lt;p&gt;BCTF 2017 Web write up&lt;/p&gt;</summary><content type="html">&lt;p&gt;毕竟还是图样图森破，这次比赛最后我们只做出来了一部分题目，很可惜火日菊苣出的两道题目都没做出来。 &lt;br&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Phuker</title><link href="https://phuker.github.io/" rel="alternate"></link><link href="https://phuker.github.io/feeds/all.atom.xml" rel="self"></link><id>https://phuker.github.io/</id><updated>2017-06-08T01:19:26+08:00</updated><entry><title>微信运动刷步数 通杀 Android iOS</title><link href="https://phuker.github.io/wechat-sports.html" rel="alternate"></link><published>2017-06-08T01:19:22+08:00</published><updated>2017-06-08T01:19:26+08:00</updated><author><name>admin</name></author><id>tag:phuker.github.io,2017-06-08:/wechat-sports.html</id><summary type="html">&lt;p&gt;how to hack WeChat Sports&lt;/p&gt;</summary><content type="html">&lt;p&gt;理论上此方案支持所有计步软件，支持所有操作系统和型号的设备（笑）。  &lt;/p&gt;
+&lt;h2&gt;方案&lt;/h2&gt;
+&lt;h3&gt;需要的材料&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;减速步进电机&lt;/li&gt;
+&lt;li&gt;单片机&lt;/li&gt;
+&lt;li&gt;移动电源&lt;/li&gt;
+&lt;li&gt;铅笔、绳子、胶带、纸盒&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;操作步骤&lt;/h3&gt;
+&lt;ol&gt;
+&lt;li&gt;把手机放到盒子里&lt;/li&gt;
+&lt;li&gt;接通电源&lt;/li&gt;
+&lt;li&gt;开始刷步&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h3&gt;效果&lt;/h3&gt;
+&lt;p&gt;&lt;img alt="sports.gif" src="images/sports.gif"&gt;&lt;/p&gt;</content></entry><entry><title>BCTF 2017 Web 题目总结</title><link href="https://phuker.github.io/bctf2017-web.html" rel="alternate"></link><published>2017-04-19T15:27:40+08:00</published><updated>2017-04-19T15:27:44+08:00</updated><author><name>admin</name></author><id>tag:phuker.github.io,2017-04-19:/bctf2017-web.html</id><summary type="html">&lt;p&gt;BCTF 2017 Web write up&lt;/p&gt;</summary><content type="html">&lt;p&gt;毕竟还是图样图森破，这次比赛最后我们只做出来了一部分题目，很可惜火日菊苣出的两道题目都没做出来。 &lt;br&gt;
 &lt;img alt="捂脸" src="/images/say-more-all-tears.jpg" style="height:8em"&gt;   &lt;/p&gt;
 &lt;h1&gt;Baby Sqli/ Kitty Shop/ Reverse: Flag Shop&lt;/h1&gt;
 &lt;p&gt;这也是一套略显莫名其妙的题目。  &lt;/p&gt;

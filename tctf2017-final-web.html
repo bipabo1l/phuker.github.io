@@ -18,7 +18,7 @@
 
 <body id="index" class="home">
         <header id="banner" class="body">
-                <h1><a href="https://phuker.github.io/#">Phuker  <strong>Phuker @ Blue-Whale Team</strong> </a></h1>
+                <h1><a href="https://phuker.github.io/#">Phuker  <strong>@ Blue-Whale Team</strong> </a></h1>
                 <nav><ul>
                     <li><a href="/#">Home</a></li>
                     <li><a href="https://phuker.github.io/category/about.html">About</a></li>
@@ -44,7 +44,7 @@
 <h1>关于比赛</h1>
 <p>说起来这还是洒家第一次坐飞机，飞机上景色不错，起飞和降落的时候加速度给人很爽的感觉。然而飞到深圳，一出地铁洒家就慌了，真不是埋汰他，这城市是真滴很热。不过这里也有好的地方，每个建筑物里面肯定有空调。所以洒家这几天除了比赛和参观都不出门，什么景点都没看。<br>
 赛场上见识了很多国内和国际的大佬，后者有 Shellphish、LC⚡BC 等，以及有女装大佬的Binja。</p>
-<p><img alt="都是大佬" src="images/tctf2017-final.jpg" style="max-width:100%;margin:0;"><br>
+<p><img alt="都是大佬" src="/images/tctf2017-final.jpg" style="max-width:100%;margin:0;"><br>
 （图：都是大佬）<br>
 比赛中洒家主要负责Web方面，题目很有难度，主要思路是跟着国际赛的计分板走。第一天在做Avatar Center，首先发现了一个SQL注入，把数据库扒了个底朝天也没发现flag，又研究设置头像功能和设置时区功能一直没有搞清程序的逻辑。然而让人意外的是，一次登录之后突然发现flag出现在了本应该显示时区的位置。洒家走了狗屎运，捡漏了！后来才知道可以扫出来一个FTP端口拿源码，设置时区那里有命令注入漏洞（黑人问号？？？）。拿到这个flag后，第一天的比赛快结束了，考虑到 Ugly Web 有一堆源码需要审计，也有很多人解出来了这道题，回到酒店主要在审计源码。洒家很快发现了第一个漏洞（反序列化+SQL注入），本地环境可以拿到2个flag，但是很怕这里面有坑，因为大家都只做出来了第1个flag。果然，第二天开场运行脚本只能拿到一个flag。第二天上午因为搞不出来Ugly Web flag 2，洒家转向了 Ocean Fish，很快发现了SQL注入漏洞，拿到了admin密码作为第1个flag。进入后台之后，找到了执行任意PHP代码的方法，也分析出来 flag 肯定就在 OPCache 里面。但是有 <code>disable_functions</code> 和 <code>open_basedir</code> 的限制并不能拿到 OPCache。赛后才知道要用到 SQLite 的 bug/feature 来绕过。<br>
 比赛过程中断断续续分析了Lucky game，但是WAF太厉害，并不能解出这道题。在这里必须要膜一下AAA战队的大佬。 <br>
@@ -564,5 +564,13 @@ php_value auto_prepend_file /var/www/html/.htaccess
         </footer><!-- /#contentinfo -->
 
 <script id="dsq-count-scr" src="//phuker.disqus.com/count.js" async></script>
+<script type="text/javascript">
+(function(){
+    var links = document.getElementsByTagName('a');
+    for(var i=0; i<links.length;i++){
+        links[i].target='_blank';
+    }
+})();
+</script>
 </body>
 </html>

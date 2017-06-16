@@ -5,7 +5,8 @@
 赛场上见识了很多国内和国际的大佬，后者有 Shellphish、LC⚡BC 等，以及有女装大佬的Binja。&lt;/p&gt;
 &lt;p&gt;&lt;img alt="都是大佬" src="/images/tctf2017-final.jpg" style="max-width:100%;margin:0;"&gt;&lt;br&gt;
 （图：都是大佬）&lt;br&gt;
-比赛中洒家主要负责Web方面，题目很有难度，主要思路是跟着国际赛的计分板走。第一天在做Avatar Center，首先发现了一个SQL注入，把数据库扒了个底朝天也没发现flag，又研究设置头像功能和设置时区功能一直没有搞清程序的逻辑。然而让人意外的是，一次登录之后突然发现flag出现在了本应该显示时区的位置。洒家走了狗屎运，捡漏了！后来才知道可以扫出来一个FTP端口拿源码，设置时区那里有命令注入漏洞（黑人问号？？？）。拿到这个flag后，第一天的比赛快结束了，考虑到 Ugly Web 有一堆源码需要审计，也有很多人解出来了这道题，回到酒店主要在审计源码。洒家很快发现了第一个漏洞（反序列化+SQL注入），本地环境可以拿到2个flag，但是很怕这里面有坑，因为大家都只做出来了第1个flag。果然，第二天开场运行脚本只能拿到一个flag。第二天上午因为搞不出来Ugly Web flag 2，洒家转向了 Ocean Fish，很快发现了SQL注入漏洞，拿到了admin密码作为第1个flag。进入后台之后，找到了执行任意PHP代码的方法，也分析出来 flag 肯定就在 OPCache 里面。但是有 &lt;code&gt;disable_functions&lt;/code&gt; 和 &lt;code&gt;open_basedir&lt;/code&gt; 的限制并不能拿到 OPCache。赛后才知道要用到 SQLite 的 bug/feature 来绕过。&lt;br&gt;
+比赛中洒家主要负责Web方面，题目很有难度，主要思路是跟着国际赛的计分板走。第一天在做Avatar Center，首先发现了一个SQL注入，把数据库扒了个底朝天也没发现flag，又研究设置头像功能和设置时区功能一直没有搞清程序的逻辑。然而让人意外的是，一次登录之后突然发现flag出现在了本应该显示时区的位置。洒家走了狗屎运，捡漏了！后来才知道可以扫出来一个FTP端口拿源码，设置时区那里有命令注入漏洞（黑人问号？？？）。这道题做了很长时间没有头绪，但是计分板显示已经有很多人解出这道题，那么这时候应该想到是不是存在没有注意到的信息，可以考虑扫描端口目录等。  &lt;br&gt;
+拿到这个flag后，第一天的比赛快结束了，考虑到 Ugly Web 有一堆源码需要审计，也有很多人解出来了这道题，回到酒店主要在审计源码。洒家很快发现了第一个漏洞（反序列化+SQL注入），本地环境可以拿到2个flag，但是很怕这里面有坑，因为大家都只做出来了第1个flag。果然，第二天开场运行脚本只能拿到一个flag。第二天上午因为搞不出来Ugly Web flag 2，洒家转向了 Ocean Fish，很快发现了SQL注入漏洞，拿到了admin密码作为第1个flag。进入后台之后，找到了执行任意PHP代码的方法，也分析出来 flag 肯定就在 OPCache 里面。但是有 &lt;code&gt;disable_functions&lt;/code&gt; 和 &lt;code&gt;open_basedir&lt;/code&gt; 的限制并不能拿到 OPCache。赛后才知道要用到 SQLite 的 bug/feature 来绕过。&lt;br&gt;
 比赛过程中断断续续分析了Lucky game，但是WAF太厉害，并不能解出这道题。在这里必须要膜一下AAA战队的大佬。 &lt;br&gt;
 最后做出了 Web 的3道题，总体拿到了 Rising Star CTF 第7的成绩。&lt;br&gt;
 以下是部分题目的记录。  &lt;/p&gt;
@@ -144,6 +145,7 @@ user_log 函数中可以利用数据库的严格模式，报错实现盲注（Er
 
 &lt;h1&gt;Ugly Web&lt;/h1&gt;
 &lt;p&gt;题目是一个站内信系统，给出了一大堆源码。功能有注册、登录、重置、发送消息、显示消息。粗略看了一下还有3个类：User、Message、MessageManager。这套代码里面有2个flag，分别对应分开的两个题目。第一个在数据库中，显然需要SQL注入获得，第二个在 config.php，用admin账号登录时发送。同时这道题目有两台服务器，之间的代码有区别，分别存储两个flag。  &lt;br&gt;
+&lt;img alt="开始代码审计 必须戴好安全帽" src="/images/code-audit.jpg"&gt;&lt;br&gt;
 洒家在酒店花了几个小时的时间看了大部分代码。首先轻松发现了第一个漏洞。这个漏洞理论上可以在两道题目上使用，但是第二天实际运行可以发现第二个服务器的代码做了修改，已经无法利用。然后洒家看了剩下的大部分代码也没有发现漏洞。这里洒家犯了严重的错误，在用第一个漏洞干掉两道题之后，漏掉了 reset.php 没有看。毕竟还是too  young too simple，还是缺乏章法和经验，一场严谨正常的比赛，不可能用一个漏洞拿两个flag。     &lt;/p&gt;
 &lt;h2&gt;吐槽&lt;/h2&gt;
 &lt;p&gt;PHP作为弱类型、动态类型的编程语言，直接看到一个函数根本无法确定它的参数都是什么数据类型。对于关键的函数必须分析函数调用关系，确定参数、变量可能的数据类型。个人认为，PHP因为有这样的特点，有各种特性古怪的函数，以及有其他的特点，导致了它的程序容易出现不容易发现的漏洞，增加写出正确程序、审计代码的成本。&lt;/p&gt;
@@ -694,7 +696,12 @@ TCTF 2017 决赛 web LuckyGame 就遇到了这种情况。在那道题的特殊�
 
 &lt;p&gt;URL：&lt;/p&gt;
 &lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;http://118.190.134.8/t1/news.php?id=0%09union%09select%09*%09from%09((select%091)a%09JOIN%09(select%09f4%09from%09(%09select%09*%09from%09((select%091%09as%09f1)t1%09join%09(select%092%09as%09f2)t2%09join%09(select%093%09as%09f3)t3%09join%09(select%094%09as%09f4)t4%09%09)%09where%091=2%09union%09select%09*%09from%09news%09where%09id=4)%09as%09sb)b%09JOIN%09(select%093)c%09JOIN%09(select%094)d)
-&lt;/pre&gt;&lt;/div&gt;</content><category term="CTF"></category><category term="web"></category></entry><entry><title>微信运动刷步数 通杀 Android iOS</title><link href="https://phuker.github.io/wechat-sports.html" rel="alternate"></link><published>2017-06-08T01:19:22+08:00</published><updated>2017-06-08T01:19:26+08:00</updated><author><name>admin</name></author><id>tag:phuker.github.io,2017-06-08:/wechat-sports.html</id><summary type="html">&lt;p&gt;how to hack WeChat Sports&lt;/p&gt;</summary><content type="html">&lt;p&gt;理论上此方案支持所有计步软件，支持所有操作系统和型号的设备（笑）。  &lt;/p&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h2&gt;扩展阅读&lt;/h2&gt;
+&lt;p&gt;&lt;a href="http://www.venenof.com/index.php/archives/240/"&gt;About Join SQLi - Veneno's Blog&lt;/a&gt;&lt;br&gt;
+&lt;a href="http://amyang.xyz/post/DDCTF-2017%20Web_1%20Writeup"&gt;DDCTF-2017 Web_1 Writeup - Blog of Amyang&lt;/a&gt;&lt;/p&gt;</content><category term="CTF"></category><category term="web"></category></entry><entry><title>微信运动刷步数 通杀 Android iOS</title><link href="https://phuker.github.io/wechat-sports.html" rel="alternate"></link><published>2017-06-08T01:19:22+08:00</published><updated>2017-06-08T01:19:26+08:00</updated><author><name>admin</name></author><id>tag:phuker.github.io,2017-06-08:/wechat-sports.html</id><summary type="html">&lt;p&gt;how to hack WeChat Sports&lt;/p&gt;</summary><content type="html">&lt;p&gt;理论上此方案支持所有计步软件，支持所有操作系统和型号的设备（笑）。  &lt;/p&gt;
 &lt;h2&gt;方案&lt;/h2&gt;
 &lt;h3&gt;需要的材料&lt;/h3&gt;
 &lt;ul&gt;

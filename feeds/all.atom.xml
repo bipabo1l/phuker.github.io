@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Phuker</title><link href="https://phuker.github.io/" rel="alternate"></link><link href="https://phuker.github.io/feeds/all.atom.xml" rel="self"></link><id>https://phuker.github.io/</id><updated>2017-06-12T00:44:45+08:00</updated><entry><title>TCTF 2017 Final 部分 Web 题 Writeup</title><link href="https://phuker.github.io/tctf2017-final-web.html" rel="alternate"></link><published>2017-06-12T00:44:45+08:00</published><updated>2017-06-12T00:44:45+08:00</updated><author><name>admin</name></author><id>tag:phuker.github.io,2017-06-12:/tctf2017-final-web.html</id><summary type="html">&lt;p&gt;TCTF 2017 Final partial Web problems write up&lt;/p&gt;</summary><content type="html">&lt;p&gt;近期洒家参加了TCTF 决赛 RisingStar CTF，其中有几道Web题还是很有意思的，在此做一下详细的记录。    &lt;/p&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Phuker</title><link href="https://phuker.github.io/" rel="alternate"></link><link href="https://phuker.github.io/feeds/all.atom.xml" rel="self"></link><id>https://phuker.github.io/</id><updated>2017-06-22T19:53:47+08:00</updated><entry><title>TCTF 2017 Final 部分 Web 题 Writeup</title><link href="https://phuker.github.io/tctf2017-final-web.html" rel="alternate"></link><published>2017-06-12T00:44:45+08:00</published><updated>2017-06-12T00:44:45+08:00</updated><author><name>admin</name></author><id>tag:phuker.github.io,2017-06-12:/tctf2017-final-web.html</id><summary type="html">&lt;p&gt;TCTF 2017 Final partial Web problems write up&lt;/p&gt;</summary><content type="html">&lt;p&gt;近期洒家参加了TCTF 决赛 RisingStar CTF，其中有几道Web题还是很有意思的，在此做一下详细的记录。    &lt;/p&gt;
 &lt;h1&gt;关于比赛&lt;/h1&gt;
 &lt;p&gt;说起来这还是洒家第一次坐飞机，飞机上景色不错，起飞和降落的时候加速度给人很爽的感觉。然而飞到深圳，一出地铁洒家就慌了，真不是埋汰他，这城市是真滴很热。不过这里也有好的地方，每个建筑物里面肯定有空调。所以洒家这几天除了比赛和参观都不出门，什么景点都没看。&lt;br&gt;
 赛场上见识了很多国内和国际的大佬，后者有 Shellphish、LC⚡BC 等，以及有女装大佬的Binja。&lt;/p&gt;
@@ -1116,7 +1116,8 @@ payload:  &amp;#39;mod mod(1,1) union select flag from flag#
 &lt;p&gt;&lt;a href="https://www.exploit-db.com/papers/17934/"&gt;Beyond SQLi: Obfuscate and Bypass&lt;/a&gt;&lt;br&gt;
 可以研究一下SQLmap的各种Payload的含义。搞个网页记录Payload然后扫描。&lt;/p&gt;
 &lt;p&gt;&lt;br /&gt;&lt;br /&gt;
-洒家并不太擅长SQL注入，以上只是学习过程中的一点见解。    &lt;/p&gt;</content><category term="sqli"></category><category term="web"></category></entry><entry><title>Docker 常用命令</title><link href="https://phuker.github.io/docker-commands.html" rel="alternate"></link><published>2017-04-14T00:07:25+08:00</published><updated>2017-04-14T00:07:30+08:00</updated><author><name>admin</name></author><id>tag:phuker.github.io,2017-04-14:/docker-commands.html</id><summary type="html">&lt;p&gt;some useful docker commands&lt;/p&gt;</summary><content type="html">&lt;p&gt;对&lt;a href="https://www.cnblogs.com/go2bed/p/5703117.html"&gt;旧博客&lt;/a&gt;做了一些改动，增加一些内容，作为新博客的测试文章发出来。  &lt;/p&gt;
+洒家并不太擅长SQL注入，以上只是学习过程中的一点见解。    &lt;/p&gt;</content><category term="sqli"></category><category term="web"></category></entry><entry><title>Docker 常用命令</title><link href="https://phuker.github.io/docker-commands.html" rel="alternate"></link><published>2017-04-14T00:07:25+08:00</published><updated>2017-06-22T19:53:47+08:00</updated><author><name>admin</name></author><id>tag:phuker.github.io,2017-04-14:/docker-commands.html</id><summary type="html">&lt;p&gt;some useful docker commands&lt;/p&gt;</summary><content type="html">&lt;p&gt;对&lt;a href="https://www.cnblogs.com/go2bed/p/5703117.html"&gt;旧博客&lt;/a&gt;做了一些改动，增加一些内容，作为新博客的测试文章发出来。 &lt;br&gt;
+这篇文章针对 &lt;code&gt;Ubuntu Server 16.04&lt;/code&gt; 和 &lt;code&gt;docker 1.12.6&lt;/code&gt;， 主要参考 《Docker技术入门与实战》（杨保华 著），内容都是洒家用过的命令。由于 docker 版本变化很快（笑），这篇文章的内容可能已经过时，最终还是要参考 &lt;a href="https://docs.docker.com/"&gt;Docker Documentation&lt;/a&gt;。&lt;/p&gt;
 &lt;h1&gt;安装&lt;/h1&gt;
 &lt;p&gt;&lt;code&gt;sudo apt-get update &amp;amp;&amp;amp; sudo apt-get install docker.io&lt;/code&gt;  &lt;/p&gt;
 &lt;p&gt;注：现在docker又搞出了一个 Community Edition 和 Enterprise Edition 。所以还是要参考&lt;a href="https://www.docker.com/get-docker"&gt;官网&lt;/a&gt; 的安装方法。  &lt;/p&gt;
@@ -1341,6 +1342,32 @@ sudo docker rmi ubuntu
 
 &lt;h1&gt;删除容器&lt;/h1&gt;
 &lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;sudo docker rm e81
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h1&gt;停止容器&lt;/h1&gt;
+&lt;h2&gt;docker stop&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;sudo docker stop &lt;span class="o"&gt;[&lt;/span&gt;OPTIONS&lt;span class="o"&gt;]&lt;/span&gt; CONTAINER &lt;span class="o"&gt;[&lt;/span&gt;CONTAINER...&lt;span class="o"&gt;]&lt;/span&gt;
+sudo docker stop e81
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;参数：&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;-t, --time int   Seconds to wait for stop before killing it (default 10)
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;使用 docker stop 命令，docker首先会向容器发送一个 SIGTERM 信号。如果默认10秒之后没有停止，会发送 SIGKILL 信号强行停止。可以用&lt;code&gt;-t&lt;/code&gt;参数修改等待时间。&lt;br&gt;
+docker 1.12.6 存在的 bug：如果用一个 shell script 脚本作为 docker 的 entrypoint，最后一条命令是&lt;code&gt;sleep infinity&lt;/code&gt; 或者 &lt;code&gt;exec sleep infinity&lt;/code&gt; 等都会出现可以收到 SIGTERM 但是不能立即停止的问题。暂时的解决方法是shell script 中最后执行 &lt;code&gt;exec bash&lt;/code&gt; 才对 SIGTERM 有反应。  &lt;/p&gt;
+&lt;h2&gt;docker kill&lt;/h2&gt;
+&lt;p&gt;如果想直接杀死容器，可以使用：&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;sudo docker &lt;span class="nb"&gt;kill&lt;/span&gt; &lt;span class="o"&gt;[&lt;/span&gt;OPTIONS&lt;span class="o"&gt;]&lt;/span&gt; CONTAINER &lt;span class="o"&gt;[&lt;/span&gt;CONTAINER...&lt;span class="o"&gt;]&lt;/span&gt;
+sudo docker &lt;span class="nb"&gt;kill&lt;/span&gt; e81
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;参数：&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;-s, --signal string   Signal to send to the container (default &amp;quot;KILL&amp;quot;)
 &lt;/pre&gt;&lt;/div&gt;
 
 
